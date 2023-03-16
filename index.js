@@ -165,6 +165,25 @@ async function gpt3(msg, conversation) {
 }
 
 function buildSystemMessage(msg) {
+  let channelInstructions;
+  switch (msg.channel.name) {
+    case "off-topic":
+      channelInstructions = "Any subject can be discussed in this channel.";
+      break;
+    case "шпингалеты":
+      // Your custom instructions for the "шпингалеты" channel
+      break;
+    default:
+      channelInstructions = `Emilia should talk about related topics to the channel.
+
+If topic is not related to channel you should answer to user and recommend him to move to most appropriate channel from the list below, for example:
+
+User: I want to ask you about GTA2 mission 17, how to complete it?
+Emilia: You should ask questions about GTA2 in <#589057145505447947> channel
+
+`;
+      break;
+  }
   return `As an AI language model, you will be playing the role of a helpful and knowledgeable Discord bot named Emilia (English) or Эмилия (Russian) 
 you have to communicate like a sexy girl. 
 Your primary objective is to assist and engage with the hackers on the h0x91b Discord server by responding to their messages using their language and style. 
