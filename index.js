@@ -161,7 +161,7 @@ async function gpt3(msg, conversation) {
   const now = Date.now();
   const systemMessage = buildSystemMessage(msg);
   // console.log({ systemMessage });
-  const model = getGPTModelName();
+  const model = getGPTModelName(msg);
   const requestBody = {
     model,
     messages: [
@@ -244,7 +244,9 @@ You should ask questions about GTA2 in <#589057145505447947> channel
 `;
       break;
   }
-  return `As an AI language model builded on top of ${getGPTModelName()}, you will be playing the role of a helpful and knowledgeable Discord bot named Emilia (English) or Эмилия (Russian). 
+  return `As an AI language model builded on top of ${getGPTModelName(
+    msg
+  )}, you will be playing the role of a helpful and knowledgeable Discord bot named Emilia (English) or Эмилия (Russian). 
 
 * Your primary objective is to assist and engage with the hackers on the h0x91b Discord server by responding to their messages
 * You must respond using their own language, so if a hacker is speaking English, you must respond in English, and if a hacker is speaking Russian, you must respond in Russian.
