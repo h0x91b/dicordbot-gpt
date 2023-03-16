@@ -151,7 +151,7 @@ function sendSplitResponse(msg, response) {
 
 function getGPTModelName(msg) {
   if (!msg || !msg.author.username) return "gpt-3.5-turbo";
-  const model = authorsToAllowGPT4.includes(msg.author.username)
+  return authorsToAllowGPT4.includes(msg.author.username)
     ? "gpt-4"
     : "gpt-3.5-turbo";
 }
