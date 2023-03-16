@@ -15,6 +15,8 @@ const client = new Client({
   ],
 });
 
+const authorsToAllowGPT4 = ["h0x91b"];
+
 client.on("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
 
@@ -37,6 +39,7 @@ client.on(Events.MessageCreate, async (msg) => {
     author: msg.author.username,
     channel: msg.channel.name,
     time: new Date().toISOString(),
+    attachments: msg.attachments,
   });
   try {
     if (msg.content === "!hello") {
@@ -106,10 +109,24 @@ async function fetchMessageHistory(msg) {
   });
   gptConversation.reverse();
 
+  let content = msg.content.replace("!gpt", "").replace("!гпт", "");
+  if (
+    authorsToAllowGPT4.includes(msg.author.username) &&
+    msg.attachments.size > 0
+  ) {
+    // image API is not enabled yet :(
+    // const attachment = msg.attachments.first();
+    // const response = await axios.get(attachment.url, {
+    //   responseType: "arraybuffer",
+    // });
+    // const buffer = Buffer.from(response.data, "binary");
+    // content = [content, { image: "aaa" }];
+  }
+
   // Push the user's message to gptConversation
   gptConversation.push({
     role: "user",
-    content: msg.content.replace("!gpt", "").replace("!гпт", ""),
+    content,
   });
 
   return gptConversation;
@@ -137,8 +154,11 @@ async function gpt3(msg, conversation) {
   const now = Date.now();
   const systemMessage = buildSystemMessage(msg);
   // console.log({ systemMessage });
+  const model = authorsToAllowGPT4.includes(msg.author.username)
+    ? "gpt-4"
+    : "gpt-3.5-turbo";
   const requestBody = {
-    model: "gpt-3.5-turbo",
+    model,
     messages: [
       {
         role: "system",
@@ -147,7 +167,7 @@ async function gpt3(msg, conversation) {
       ...conversation,
     ],
     user: `<@${msg.author.id}>`,
-    max_tokens: 500,
+    max_tokens: 1000,
   };
 
   try {
@@ -165,9 +185,18 @@ async function gpt3(msg, conversation) {
     console.log("gpt response", choices, meta);
     const responseTime = ((Date.now() - now) / 1000).toFixed(2);
     console.log("responseTime", responseTime);
-    return choices[0].message.content;
+    return `[${model}] ` + choices[0].message.content;
   } catch (error) {
-    console.error("Error calling ChatGPT API:", error);
+    console.error(
+      "Error calling ChatGPT API:",
+      error?.response?.status,
+      error?.response?.statusText,
+      error?.response?.data?.error,
+      error?.response?.headers
+    );
+    return `Error calling ChatGPT API: ${error?.response?.status} ${
+      error?.response?.statusText
+    } \`\`\`${JSON.stringify(error?.response?.data?.error, null, 2)}\`\`\``;
   }
 }
 
