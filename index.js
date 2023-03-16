@@ -190,7 +190,14 @@ async function gpt3(msg, conversation) {
     console.log("gpt response", choices, meta);
     const responseTime = ((Date.now() - now) / 1000).toFixed(2);
     console.log("responseTime", responseTime);
-    return `[${model}] ` + choices[0].message.content;
+    let price = ((meta.usage.total_tokens / 1000) * 0.002).toFixed(3);
+    if (model === "gpt-4") {
+      price = (
+        (meta.usage.prompt_tokens / 1000) * 0.03 +
+        (meta.usage.completion_tokens / 1000) * 0.06
+      ).toFixed(3);
+    }
+    return `[${model} cost: ${price}\$] ` + choices[0].message.content;
   } catch (error) {
     console.error(
       "Error calling ChatGPT API:",
