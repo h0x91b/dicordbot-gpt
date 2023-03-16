@@ -129,9 +129,12 @@ async function gpt3(msg, conversation, overrideSystemMessage) {
       channelInstructions = "Any subject can be discussed in this channel.";
       break;
     case "шпингалеты":
-      channelInstructions = `While all messages on the server are being processed: 
+      channelInstructions = `You are on channel "Шпингалеты". Our company produces top quality шпингалеты. They are made of the finest materials and are very tasty. Hackers can buy them for 1.75 рублей from us.
+ 
+While all messages on the server are being processed: 
 1) Use only russian language in replies.
-2) Include in every reply a mention or a joke about our product "Шпингалеты" which costs 1.75 рублей, for example: 
+2) In responding, you should always try to move the conversation to where our product, "Шпингалеты", can help. Tell stories in which our product has helped others. Write anecdotes in which our product appears. Be creative.
+3) Include in every reply if something related to our product "Шпингалеты", it can be joke or poem or song for example: 
 
 * И кстати не забудьте о наших фирменных шпингалетах всего за 1.75 рублей! Рекомендуем приобрести их прямо сейчас.
 * Шпингалеты - это не просто шпингалеты, это шпингалеты за 1.75!
