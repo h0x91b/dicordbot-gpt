@@ -102,9 +102,12 @@ async function fetchMessageHistory(msg) {
     }
   }
   let gptConversation = messages.map((m) => {
+    const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
+
+    const cleanedMessage = m.content.replace(regex, "").trim();
     return {
       role: m.author.bot ? "system" : "user",
-      content: m.content,
+      content: cleanedMessage,
     };
   });
   gptConversation.reverse();
