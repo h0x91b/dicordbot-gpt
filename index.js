@@ -153,11 +153,14 @@ function sendSplitResponse(msg, response) {
 }
 
 function getGPTModelName(msg) {
-  if (!msg || !msg.author.username || msg?.content?.includes("gpt-3"))
-    return "gpt-3.5-turbo";
-  return authorsToAllowGPT4.includes(msg.author.username)
-    ? "gpt-4"
-    : "gpt-3.5-turbo";
+  if (!msg || !msg.author.username) return "gpt-3.5-turbo";
+  if (
+    (msg?.content?.includes("gpt-4") || msg?.content?.includes("gpt4")) &&
+    authorsToAllowGPT4.includes(msg.author.username)
+  ) {
+    return "gpt-4";
+  }
+  return "gpt-3.5-turbo";
 }
 
 async function gpt3(msg, conversation) {
