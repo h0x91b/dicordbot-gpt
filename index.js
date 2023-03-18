@@ -153,7 +153,7 @@ function sendSplitResponse(msg, response) {
 }
 
 function getGPTModelName(msg) {
-  if (!msg || !msg.author.username || msg.includes("gpt-3"))
+  if (!msg || !msg.author.username || msg?.includes("gpt-3"))
     return "gpt-3.5-turbo";
   return authorsToAllowGPT4.includes(msg.author.username)
     ? "gpt-4"
