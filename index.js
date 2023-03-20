@@ -174,13 +174,14 @@ function getGPTModelName(msg) {
 async function gpt(msg, conversation) {
   const now = Date.now();
   const systemMessage = buildSystemMessage(msg);
-  const messages = [
-    {
-      role: "system",
-      content: systemMessage,
-    },
-  ];
+  const messages = [];
+  if (conversation.length < 3) {
+    messages.push(systemMessage);
+  }
   for (let i = 0; i < conversation.length; i++) {
+    if (2 === conversation.length - i) {
+      messages.push(systemMessage);
+    }
     messages.push(conversation[i]);
   }
   console.log("gpt", { messages });
