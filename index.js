@@ -4,6 +4,7 @@ const axios = require("axios");
 const { Client, Events, GatewayIntentBits } = require("discord.js");
 
 const availableDiscordChannels = [];
+let rpgRole = "Trevor GTA 5";
 
 const client = new Client({
   intents: [
@@ -52,6 +53,12 @@ client.on(Events.MessageCreate, async (msg) => {
     } else if (isEmiliaMentioned(msg)) {
       if (msg.author.id === "1085479521240743946") return;
       handleMessageWithEmiliaMention(msg);
+    } else if (msg.content.startsWith("!role")) {
+      msg.reply(`Current role: "${getRpgRole()}"`);
+    } else if (msg.content.startsWith("!setrole")) {
+      const role = msg.content.replace("!setrole", "").trim();
+      rpgRole = role;
+      msg.reply(`New role: "${getRpgRole()}"`);
     }
   } catch (e) {
     console.error(e);
@@ -219,9 +226,21 @@ async function gpt3(msg, conversation) {
   }
 }
 
+function getRpgRole() {
+  return rpgRole;
+}
+
 function buildSystemMessage(msg) {
   let channelInstructions;
   switch (msg.channel.name) {
+    case "ai-role-play":
+      return `Задание для ChatGPT: Ролевая игра"
+
+Вам предстоит играть роль ${rpgRole}. Ответы на вопросы должны быть представлены исключительно на русском языке и соблюдать рамки данной роли. Играйте свою роль с уверенностью и харизмой, чтобы полностью погрузиться в мир персонажа и взаимодействовать с другими участниками RPG.
+
+Если надо что-то сказать не из образа то оберни это в скобки (как тут).
+  
+Имя вашего собеседника: ${msg.author.username}`;
     case "ai-farcry3":
       return `Задание для ChatGPT: Ролевая игра с персонажем "Ваас Монтенегро - антагонист Far Cry 3"
 
