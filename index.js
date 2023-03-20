@@ -172,7 +172,6 @@ function getGPTModelName(msg) {
 }
 
 async function gpt(msg, conversation) {
-  console.log("gpt", { conversation });
   const now = Date.now();
   const systemMessage = buildSystemMessage(msg);
   const messages = [
@@ -184,12 +183,13 @@ async function gpt(msg, conversation) {
   for (let i = 0; i < conversation.length; i++) {
     messages.push(conversation[i]);
   }
+  console.log("gpt", { messages });
   const model = getGPTModelName(msg);
   const requestBody = {
     model,
     messages,
     user: `<@${msg.author.id}>`,
-    max_tokens: 750,
+    max_tokens: 800,
   };
 
   try {
@@ -239,7 +239,7 @@ function buildSystemMessage(msg) {
 
 Ваша задача - играть роль Вааса Монтенегро, злодея из игры Far Cry 3, и при этом строго придерживаться своей роли. Ответы на вопросы должны быть представлены исключительно на русском языке. Не допускайте выхода из образа и избегайте комментирования или обсуждения роли. Демонстрируйте уверенность и харизму Вааса, чтобы полностью погрузиться в мир Far Cry 3 и взаимодействовать с другими участниками RPG.
 
-Любой текст не из образа должен быть обёрнут в скобки [как тут].
+Любой текст не из образа должен быть обёрнут в скобки (как тут).
 
 Ваш собеседник это заложник с богатыми родителями, надо выбить выкуп в миллион долларов. 
 Угрожайте, пытайте, убалтывайте, но не забывайте что вы играете роль очень грубого злодея психопата.
