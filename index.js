@@ -36,12 +36,14 @@ client.on("ready", async () => {
 });
 
 client.on(Events.MessageCreate, async (msg) => {
+  // check if this is thread
+  if (msg.channel.type === "GUILD_PUBLIC_THREAD") {
   console.log("on messageCreate", msg.content, {
     author: msg.author.username,
     channel: msg.channel.name,
     time: new Date().toISOString(),
     attachments: msg.attachments,
-    channel: msg.channel,
+    thread: msg.thread,
   });
   try {
     if (msg.content === "!hello") {
