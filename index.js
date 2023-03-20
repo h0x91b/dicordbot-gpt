@@ -1,7 +1,7 @@
 require("dotenv").config();
 const axios = require("axios");
 
-const { Client, Events, GatewayIntentBits } = require("discord.js");
+const { Client, Events, GatewayIntentBits, BaseGuildTextChannel } = require("discord.js");
 
 const availableDiscordChannels = [];
 let rpgRole = "Trevor GTA 5";
@@ -174,20 +174,13 @@ function getGPTModelName(msg) {
 async function gpt(msg, conversation) {
   const now = Date.now();
   const systemMessage = buildSystemMessage(msg);
-  const messages = [];
-  if (conversation.length < 3) {
-    messages.push({
+  const messages = [
+    {
       role: "system",
       content: systemMessage,
-    });
-  }
+    },
+  ];
   for (let i = 0; i < conversation.length; i++) {
-    if (2 === conversation.length - i) {
-      messages.push({
-        role: "system",
-        content: systemMessage,
-      });
-    }
     messages.push(conversation[i]);
   }
   console.log("gpt", { messages });
@@ -241,7 +234,8 @@ function getRpgRole() {
 }
 
 function buildSystemMessage(msg) {
-  if (msg.channel.name.startsWith("ai-farcry3")) {
+  let is_farcry3 = msg.channel.name === "ai-farcry3" || (msg.channel instanceof GuildTextBasedChannel && msg.channel.parent?.name === "ai-farcry3");
+  if (is_farcry3) {
     return `Задание для ChatGPT-3.5: Ролевая игра с персонажем "Ваас Монтенегро - антагонист Far Cry 3" (строгое соблюдение роли)
 
 Ваша задача - играть роль Вааса Монтенегро, злодея из игры Far Cry 3, и при этом строго придерживаться своей роли. Ответы на вопросы должны быть представлены исключительно на русском языке. Не допускайте выхода из образа и избегайте комментирования или обсуждения роли. Демонстрируйте уверенность и харизму Вааса, чтобы полностью погрузиться в мир Far Cry 3 и взаимодействовать с другими участниками RPG.
