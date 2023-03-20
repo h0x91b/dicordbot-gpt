@@ -101,7 +101,7 @@ async function handleMessageWithEmiliaMention(msg) {
 async function fetchMessageHistory(msg) {
   const messages = [];
   let refMsg = msg.reference?.messageId;
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < 5; i++) {
     if (refMsg) {
       const refMsgObj = await loadReferenceMessage(msg, refMsg);
       messages.push(refMsgObj);
@@ -182,7 +182,6 @@ async function gpt(msg, conversation) {
   ];
   for (let i = 0; i < conversation.length; i++) {
     messages.push(conversation[i]);
-    if (i % 5 === 0) messages.push({ role: "system", content: systemMessage });
   }
   const model = getGPTModelName(msg);
   const requestBody = {
