@@ -176,11 +176,17 @@ async function gpt(msg, conversation) {
   const systemMessage = buildSystemMessage(msg);
   const messages = [];
   if (conversation.length < 3) {
-    messages.push(systemMessage);
+    messages.push({
+      role: "system",
+      content: systemMessage,
+    });
   }
   for (let i = 0; i < conversation.length; i++) {
     if (2 === conversation.length - i) {
-      messages.push(systemMessage);
+      messages.push({
+        role: "system",
+        content: systemMessage,
+      });
     }
     messages.push(conversation[i]);
   }
