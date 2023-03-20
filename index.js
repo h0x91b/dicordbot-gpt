@@ -101,7 +101,7 @@ async function handleMessageWithEmiliaMention(msg) {
 async function fetchMessageHistory(msg) {
   const messages = [];
   let refMsg = msg.reference?.messageId;
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 10; i++) {
     if (refMsg) {
       const refMsgObj = await loadReferenceMessage(msg, refMsg);
       messages.push(refMsgObj);
