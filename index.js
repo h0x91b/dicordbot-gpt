@@ -36,7 +36,7 @@ client.on("ready", async () => {
 });
 
 client.on(Events.MessageCreate, async (msg) => {
-  const parent = await message?.thread?.parent?.fetch();
+  const parent = await msg?.thread?.parent?.fetch();
   console.log("on messageCreate", msg.content, {
     author: msg.author.username,
     channel: msg.channel.name,
