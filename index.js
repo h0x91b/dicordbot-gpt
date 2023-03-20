@@ -82,7 +82,7 @@ async function handleHello(msg) {
 
 async function handleGpt(msg) {
   msg.react("👍");
-  const response = await gpt3(msg, [
+  const response = await gpt(msg, [
     {
       role: "user",
       content: msg.content.replace("!gpt", "").replace("!гпт", ""),
@@ -94,7 +94,7 @@ async function handleGpt(msg) {
 async function handleMessageWithEmiliaMention(msg) {
   msg.react("👍");
   const gptConversation = await fetchMessageHistory(msg);
-  const response = await gpt3(msg, gptConversation);
+  const response = await gpt(msg, gptConversation);
   sendSplitResponse(msg, response);
 }
 
@@ -113,7 +113,7 @@ async function fetchMessageHistory(msg) {
 
     const cleanedMessage = m.content.replace(regex, "").trim();
     return {
-      role: m.author.bot ? "system" : "user",
+      role: m.author.bot ? "assistant" : "user",
       content: cleanedMessage,
     };
   });
@@ -170,21 +170,24 @@ function getGPTModelName(msg) {
   return "gpt-3.5-turbo";
 }
 
-async function gpt3(msg, conversation) {
-  console.log("gpt3", { conversation });
+async function gpt(msg, conversation) {
+  console.log("gpt", { conversation });
   const now = Date.now();
   const systemMessage = buildSystemMessage(msg);
-  // console.log({ systemMessage });
+  const messages = [
+    {
+      role: "system",
+      content: systemMessage,
+    },
+  ];
+  for (let i = 0; i < conversation.length; i++) {
+    messages.push(conversation[i]);
+    if (i % 5 === 0) messages.push({ role: "system", content: systemMessage });
+  }
   const model = getGPTModelName(msg);
   const requestBody = {
     model,
-    messages: [
-      {
-        role: "system",
-        content: systemMessage,
-      },
-      ...conversation,
-    ],
+    messages,
     user: `<@${msg.author.id}>`,
     max_tokens: 750,
   };
