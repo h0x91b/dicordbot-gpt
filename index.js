@@ -243,8 +243,7 @@ function getRpgRole() {
 function buildSystemMessage(msg) {
   let is_farcry3 =
     msg.channel.name === "ai-farcry3" ||
-    (msg.channel instanceof GuildTextBasedChannel &&
-      msg.channel.parent?.name === "ai-farcry3");
+    msg.channel?.parent?.name === "ai-farcry3";
 
   if (is_farcry3) {
     return `Задание для ChatGPT-3.5: Ролевая игра с персонажем "Ваас Монтенегро - антагонист Far Cry 3" (строгое соблюдение роли)
