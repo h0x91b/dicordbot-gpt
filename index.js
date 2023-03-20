@@ -36,12 +36,12 @@ client.on("ready", async () => {
 });
 
 client.on(Events.MessageCreate, async (msg) => {
-  const parent = await msg?.thread?.parent?.fetch();
   console.log("on messageCreate", msg.content, {
     author: msg.author.username,
     channel: msg.channel.name,
     time: new Date().toISOString(),
     attachments: msg.attachments,
+    parentName: msg.channel.parent?.name,
   });
   try {
     if (msg.content === "!hello") {
@@ -145,7 +145,7 @@ async function fetchMessageHistory(msg) {
 
 async function loadReferenceMessage(msg, messageId) {
   const refMsgObj = await msg?.channel?.messages.fetch(messageId);
-  console.log("refMsgObj", refMsgObj);
+  // console.log("refMsgObj", refMsgObj);
   return refMsgObj;
 }
 
