@@ -41,6 +41,7 @@ client.on(Events.MessageCreate, async (msg) => {
     channel: msg.channel.name,
     time: new Date().toISOString(),
     attachments: msg.attachments,
+    channel: msg.channel,
   });
   try {
     if (msg.content === "!hello") {
