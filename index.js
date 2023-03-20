@@ -36,14 +36,14 @@ client.on("ready", async () => {
 });
 
 client.on(Events.MessageCreate, async (msg) => {
-  // check if this is thread
+  const parent = await message?.thread?.parent?.fetch();
   console.log("on messageCreate", msg.content, {
     author: msg.author.username,
     channel: msg.channel.name,
     time: new Date().toISOString(),
     attachments: msg.attachments,
     thread: msg.thread,
-    msg,
+    parent,
   });
   try {
     if (msg.content === "!hello") {
