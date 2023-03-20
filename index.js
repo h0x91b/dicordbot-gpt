@@ -43,6 +43,7 @@ client.on(Events.MessageCreate, async (msg) => {
     time: new Date().toISOString(),
     attachments: msg.attachments,
     thread: msg.thread,
+    msg,
   });
   try {
     if (msg.content === "!hello") {
