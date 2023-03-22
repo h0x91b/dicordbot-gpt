@@ -200,6 +200,21 @@ async function gpt(msg, conversation) {
   };
 
   try {
+    const reactions = [
+      ":one:",
+      ":two:",
+      ":three:",
+      ":four:",
+      ":five:",
+      ":six:",
+      ":seven:",
+      ":eight:",
+      ":nine:",
+      ":keycap_ten:",
+    ];
+    let timeout = setTimeout(() => {
+      msg.react(reactions.shift());
+    }, 30000 / 10);
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       requestBody,
@@ -208,8 +223,10 @@ async function gpt(msg, conversation) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         },
+        timeout: 30000,
       }
     );
+    clearTimeout(timeout);
     const { choices, ...meta } = response.data;
     console.log("gpt response", choices, meta);
     const responseTime = ((Date.now() - now) / 1000).toFixed(2);
@@ -221,7 +238,10 @@ async function gpt(msg, conversation) {
         (meta.usage.completion_tokens / 1000) * 0.06
       ).toFixed(3);
     }
-    return `[${model} cost: ${price}\$] ` + choices[0].message.content;
+    return (
+      `[${model} cost: ${price}\$]
+` + choices[0].message.content
+    );
   } catch (error) {
     console.error(
       "Error calling ChatGPT API:",
