@@ -196,7 +196,7 @@ async function gpt(msg, conversation) {
     model,
     messages,
     user: `<@${msg.author.id}>`,
-    max_tokens: 900,
+    max_tokens: 600,
   };
 
   let timeout;
