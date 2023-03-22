@@ -201,17 +201,18 @@ async function gpt(msg, conversation) {
 
   try {
     const reactions = [
-      ":one:",
-      ":two:",
-      ":three:",
-      ":four:",
-      ":five:",
-      ":six:",
-      ":seven:",
-      ":eight:",
-      ":nine:",
-      ":keycap_ten:",
+      "1️⃣",
+      "2️⃣",
+      "3️⃣",
+      "4️⃣",
+      "5️⃣",
+      "6️⃣",
+      "7️⃣",
+      "8️⃣",
+      "9️⃣",
+      "🔟",
     ];
+
     let timeout = setTimeout(() => {
       msg.react(reactions.shift());
     }, 30000 / 10);
