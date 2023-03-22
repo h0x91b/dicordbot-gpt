@@ -199,6 +199,7 @@ async function gpt(msg, conversation) {
     max_tokens: 900,
   };
 
+  let timeout;
   try {
     const reactions = [
       "1️⃣",
@@ -213,7 +214,6 @@ async function gpt(msg, conversation) {
       "🔟",
     ];
 
-    let timeout;
     let currentIndex = 0;
 
     async function fn() {
@@ -269,6 +269,7 @@ async function gpt(msg, conversation) {
       error?.response?.data?.error,
       error?.response?.headers
     );
+    clearTimeout(timeout);
     return `Error calling ChatGPT API: ${error?.response?.status} ${
       error?.response?.statusText
     } \`\`\`${JSON.stringify(error?.response?.data?.error, null, 2)}\`\`\``;
