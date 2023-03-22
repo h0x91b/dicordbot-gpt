@@ -175,7 +175,7 @@ async function gpt(msg, conversation) {
   const now = Date.now();
   const systemMessage = buildSystemMessage(msg);
   const messages = [];
-  if (conversation.length < 3) {
+  if (conversation.length < 5) {
     messages.push({
       role: "system",
       content: systemMessage,
@@ -196,7 +196,7 @@ async function gpt(msg, conversation) {
     model,
     messages,
     user: `<@${msg.author.id}>`,
-    max_tokens: 800,
+    max_tokens: 900,
   };
 
   try {
