@@ -212,10 +212,13 @@ async function gpt(msg, conversation) {
       "9️⃣",
       "🔟",
     ];
-
-    let timeout = setTimeout(() => {
+    let timeout;
+    function fn() {
       msg.react(reactions.shift());
-    }, 30000 / 10);
+      timeout = setTimeout(fn, 30000 / 10);
+    }
+
+    timeout = setTimeout(fn, 30000 / 10);
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       requestBody,
