@@ -199,6 +199,7 @@ async function gpt(msg, conversation) {
   };
 
   let timeout;
+  const maxResponseTime = 60000;
   try {
     const reactions = [
       "1️⃣",
@@ -228,11 +229,11 @@ async function gpt(msg, conversation) {
       if (currentIndex < reactions.length) {
         msg.react(reactions[currentIndex]);
         currentIndex++;
-        timeout = setTimeout(fn, 30000 / 10);
+        timeout = setTimeout(fn, maxResponseTime / 10);
       }
     }
 
-    timeout = setTimeout(fn, 30000 / 10);
+    timeout = setTimeout(fn, maxResponseTime / 10);
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       requestBody,
@@ -241,7 +242,7 @@ async function gpt(msg, conversation) {
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         },
-        timeout: 30000,
+        timeout: maxResponseTime,
       }
     );
     clearTimeout(timeout);
