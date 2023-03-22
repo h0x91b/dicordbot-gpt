@@ -212,10 +212,27 @@ async function gpt(msg, conversation) {
       "9️⃣",
       "🔟",
     ];
+
     let timeout;
-    function fn() {
-      msg.react(reactions.shift());
-      timeout = setTimeout(fn, 30000 / 10);
+    let currentIndex = 0;
+
+    async function fn() {
+      if (currentIndex > 0) {
+        const previousReaction = msg.reactions.resolve(
+          reactions[currentIndex - 1]
+        );
+        if (previousReaction) {
+          await previousReaction.users.remove(client.user.id);
+        }
+      }
+
+      if (currentIndex < reactions.length) {
+        await msg.react(reactions[currentIndex]);
+        currentIndex++;
+        timeout = setTimeout(fn, 30000 / 10);
+      } else {
+        clearTimeout(timeout);
+      }
     }
 
     timeout = setTimeout(fn, 30000 / 10);
