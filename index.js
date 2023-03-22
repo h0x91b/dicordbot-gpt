@@ -222,16 +222,14 @@ async function gpt(msg, conversation) {
           reactions[currentIndex - 1]
         );
         if (previousReaction) {
-          await previousReaction.users.remove(client.user.id);
+          previousReaction.users.remove(client.user.id);
         }
       }
 
       if (currentIndex < reactions.length) {
-        await msg.react(reactions[currentIndex]);
+        msg.react(reactions[currentIndex]);
         currentIndex++;
         timeout = setTimeout(fn, 30000 / 10);
-      } else {
-        clearTimeout(timeout);
       }
     }
 
