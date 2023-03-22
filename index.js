@@ -27,7 +27,6 @@ client.on("ready", async () => {
     console.log(`Guild: ${guild.name}`);
     guild.channels.cache.forEach((channel) => {
       if (channel.type === 0) {
-        console.log(channel.name);
         availableDiscordChannels.push(`#${channel.name} - <#${channel.id}>`);
       }
     });
