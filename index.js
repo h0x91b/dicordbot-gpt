@@ -129,6 +129,7 @@ client.on(Events.MessageCreate, async (msg) => {
 });
 
 let grammarTimers = {};
+let lastUserMessageId = {};
 
 async function handleGrammarFix(msg) {
   console.log("handleGrammarFix", msg.author.username, msg.content);
@@ -163,7 +164,13 @@ User: "$!43423432!#@"
 {"errorCount": 0, "errors": [], "fixed": "$!43423432!#@"}
 ---
 `;
-    const lastMessages = await getUserLastMessage(msg, 10, 1000 * 60 * 5);
+    const lastId = lastUserMessageId[msg.author.id] || 0;
+    const lastMessages = await getUserLastMessage(
+      msg,
+      10,
+      1000 * 60 * 5
+    ).filter(({ createdTimestamp }) => createdTimestamp > lastId);
+    if (!lastMessages.length) return;
     const response = await gpt(
       msg,
       [
@@ -188,8 +195,9 @@ User: "$!43423432!#@"
 ${obj.fixed}
 \`\`\`
 `);
+      lastUserMessageId[msg.author.id] = msg.createdTimestamp;
     } catch (e) {}
-  }, 15000);
+  }, 30000);
 }
 
 client.login(process.env.DISCORD_BOT_TOKEN);
