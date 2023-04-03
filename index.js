@@ -2,7 +2,12 @@ require("dotenv").config();
 const fs = require("fs");
 const axios = require("axios");
 const { encode, decode } = require("gpt-3-encoder");
-const { Client, Events, GatewayIntentBits } = require("discord.js");
+const {
+  Client,
+  Events,
+  GatewayIntentBits,
+  MessageAttachment,
+} = require("discord.js");
 const { farcryRolePlayRUPrompt, farcryRolePlayENPrompt } = require("./farcry3");
 
 let availableDiscordChannels = [];
