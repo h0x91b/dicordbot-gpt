@@ -144,7 +144,7 @@ async function fetchMessageHistory(msg) {
   let content = msg.content.replace("!gpt", "").replace("!гпт", "");
   let tokens =
     calculateTokens(content) + calculateTokens(buildSystemMessage(msg));
-  const MAX_TOKENS = 8000;
+  const MAX_TOKENS = 4500;
   if (tokens > MAX_TOKENS) {
     await msg.reply(
       `ERROR: Message is too long (${tokens} tokens), please shorten it`
