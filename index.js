@@ -73,6 +73,22 @@ client.on(Events.MessageCreate, async (msg) => {
   try {
     if (msg.content === "!hello") {
       handleHello(msg);
+    } else if (msg.content.startsWith("!getMessages")) {
+      const userId = msg.author.id;
+      const channelId = msg.channel.id;
+
+      const channel = await client.channels.fetch(channelId);
+      if (!channel.isText()) {
+        console.log("This is not a text channel");
+        return;
+      }
+
+      const messages = await channel.messages.fetch({ limit: 50 });
+      const userMessages = messages
+        .filter((msg) => msg.author.id === userId)
+        .first(5);
+
+      console.log("last 5 userMessages", userMessages);
     } else if (
       msg.content.startsWith("!gpt") ||
       msg.content.startsWith("!гпт")
