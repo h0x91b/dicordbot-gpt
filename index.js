@@ -280,12 +280,12 @@ async function gpt(msg, conversation) {
     console.log("gpt response", choices, meta);
     const responseTime = ((Date.now() - now) / 1000).toFixed(2);
     console.log("responseTime", responseTime);
-    let price = ((meta.usage.total_tokens / 1000) * 0.002).toFixed(3);
+    let price = ((meta.usage.total_tokens / 1000) * 0.002).toFixed(4);
     if (model === "gpt-4") {
       price = (
         (meta.usage.prompt_tokens / 1000) * 0.03 +
         (meta.usage.completion_tokens / 1000) * 0.06
-      ).toFixed(3);
+      ).toFixed(4);
     }
     return (
       `[${model} cost: ${price}\$]
