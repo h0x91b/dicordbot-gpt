@@ -59,6 +59,12 @@ client.on(Events.MessageCreate, async (msg) => {
       const role = msg.content.replace("!setrole", "").trim();
       rpgRole = role;
       msg.reply(`New role: "${getRpgRole()}"`);
+    } else if (msg.startsWith("!prompt")) {
+      msg.reply(`Current prompt: "${currentTestPrompt}"`);
+    } else if (msg.startsWith("!setprompt")) {
+      const prompt = msg.content.replace("!setprompt", "").trim();
+      currentTestPrompt = prompt;
+      msg.reply(`New prompt: "${currentTestPrompt}"`);
     }
   } catch (e) {
     console.error(e);
@@ -304,6 +310,8 @@ function getRpgRole() {
   return rpgRole;
 }
 
+let currentTestPrompt = `You are a helpful assistant`;
+
 function buildSystemMessage(msg) {
   let is_farcry3 =
     msg.channel.name === "ai-farcry3" ||
@@ -424,6 +432,8 @@ __Рассказчик: Заложник потирает синяк под гл
   }
   let channelInstructions;
   switch (msg.channel.name) {
+    case "chat-bot-prompt-testing":
+      return currentTestPrompt;
     case "ai-role-play":
       return `Задание для ChatGPT: Ролевая игра с персонажем "${rpgRole}" (строгое соблюдение роли)"
 
