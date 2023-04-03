@@ -59,9 +59,9 @@ client.on(Events.MessageCreate, async (msg) => {
       const role = msg.content.replace("!setrole", "").trim();
       rpgRole = role;
       msg.reply(`New role: "${getRpgRole()}"`);
-    } else if (msg.startsWith("!prompt")) {
+    } else if (msg.content.startsWith("!prompt")) {
       msg.reply(`Current prompt: "${currentTestPrompt}"`);
-    } else if (msg.startsWith("!setprompt")) {
+    } else if (msg.content.startsWith("!setprompt")) {
       const prompt = msg.content.replace("!setprompt", "").trim();
       currentTestPrompt = prompt;
       msg.reply(`New prompt: "${currentTestPrompt}"`);
