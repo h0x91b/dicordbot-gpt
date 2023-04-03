@@ -31,7 +31,7 @@ const fixGrammarUsers = [
   // "405507382207315978", // h0x91b
 ];
 
-function downloadAudio(url, filename, msg) {
+function downloadAudio(url, filename, msg, text) {
   return axios
     .get(url, { responseType: "stream" })
     .then(async (response) => {
@@ -46,7 +46,7 @@ function downloadAudio(url, filename, msg) {
 
         // Send the MP3 file after the download has finished
         await msg.reply({
-          content: "Here is your MP3 file:",
+          content: text,
           files: [filename],
         });
 
@@ -343,7 +343,7 @@ async function handleMessageWithEmiliaMention(msg) {
   msg.react("👍");
   const gptConversation = await fetchMessageHistory(msg);
   const response = await gpt(msg, gptConversation);
-  sendSplitResponse(msg, response);
+  // sendSplitResponse(msg, response);
   const voiceId = 13;
   const text = response;
   const format = "mp3";
@@ -361,7 +361,7 @@ async function handleMessageWithEmiliaMention(msg) {
     const file = `output.${Math.floor(Math.random() * 1000)}.${
       synthesisData.format
     }`;
-    await downloadAudio(synthesisData.audio_url, file, msg);
+    await downloadAudio(synthesisData.audio_url, file, msg, response);
   } else {
     console.error("Error synthesizing speech:", synthesisData.message);
   }
