@@ -246,6 +246,7 @@ User: "зщадеваешь пальцы опухшиек не всегал по
       }
     );
     console.log("fix grammar response: ", response);
+    lastUserMessageId[msg.author.id] = msg.createdTimestamp;
     await msg.reply(`Fixed grammar errors:
 \`\`\`
 ${response}
