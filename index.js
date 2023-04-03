@@ -233,9 +233,9 @@ User: "зщадеваешь пальцы опухшиек не всегал по
       [
         {
           role: "user",
-          content: `"${JSON.stringify(
+          content: `${JSON.stringify(
             lastMessages.map(({ content }) => content).join("\n")
-          )}"`,
+          )}`,
         },
       ],
       {
