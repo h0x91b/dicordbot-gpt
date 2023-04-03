@@ -6,7 +6,7 @@ const {
   Client,
   Events,
   GatewayIntentBits,
-  MessageAttachment,
+  MessagePayload,
 } = require("discord.js");
 const { farcryRolePlayRUPrompt, farcryRolePlayENPrompt } = require("./farcry3");
 
@@ -337,12 +337,12 @@ async function handleMessageWithEmiliaMention(msg) {
       synthesisData.format
     }`;
     await downloadAudio(synthesisData.audio_url, file);
-    // Create a new MessageAttachment instance
-    const attachment = new MessageAttachment(file);
+    const payload = new MessagePayload(client, {
+      content: "play:",
+      files: [file],
+    });
 
-    // Send the attachment in the message
-    await message.reply({ files: [attachment] });
-    //
+    await msg.reply(payload);
 
     setTimeout(() => {
       // delete file
