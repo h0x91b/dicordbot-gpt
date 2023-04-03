@@ -337,7 +337,8 @@ async function handleGpt(msg) {
 async function generateVoiceResponse(msg, response) {
   // sendSplitResponse(msg, response);
   // const voiceId = 18;
-  const voiceId = 194;
+  // const voiceId = 194;
+  const voiceId = 100;
   // const voiceId = 13;
   const text = response;
   const format = "mp3";
