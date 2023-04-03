@@ -174,7 +174,9 @@ User: "$!43423432!#@"
       [
         {
           role: "user",
-          content: lastMessages.map(({ content }) => content).join("\n"),
+          content: `User: ${JSON.stringify(
+            lastMessages.map(({ content }) => content).join("\n")
+          )}`,
         },
       ],
       {
