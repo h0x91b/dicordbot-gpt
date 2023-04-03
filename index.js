@@ -348,7 +348,14 @@ async function handleMessageWithEmiliaMention(msg) {
   const text = response;
   const format = "mp3";
 
-  const { data: synthesisData } = await synthesizeSpeech(voiceId, text, format);
+  const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
+  let cleanedMessage = text.replace(regex, "").trim();
+
+  const { data: synthesisData } = await synthesizeSpeech(
+    voiceId,
+    cleanedMessage,
+    format
+  );
 
   if (synthesisData.status) {
     const file = `output.${Math.floor(Math.random() * 1000)}.${
