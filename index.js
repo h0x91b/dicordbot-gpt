@@ -22,7 +22,7 @@ const authorsToAllowGPT4 = [
 ];
 const fixGrammarUsers = [
   "309119244979798016", // Wlastas
-  "405507382207315978", // h0x91b
+  // "405507382207315978", // h0x91b
 ];
 
 client.on("ready", async () => {
@@ -189,15 +189,15 @@ User: "$!43423432!#@"
     console.log("fix grammar response: ", response);
     try {
       const obj = JSON.parse(response);
+      lastUserMessageId[msg.author.id] = msg.createdTimestamp;
       if (!obj.errorCount) return;
       await msg.reply(`Fixed ${obj.errorCount} grammar errors:
 \`\`\`
 ${obj.fixed}
 \`\`\`
 `);
-      lastUserMessageId[msg.author.id] = msg.createdTimestamp;
     } catch (e) {}
-  }, 30000);
+  }, 15000);
 }
 
 client.login(process.env.DISCORD_BOT_TOKEN);
