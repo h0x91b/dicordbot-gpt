@@ -1,4 +1,5 @@
 require("dotenv").config();
+const fs = require("fs");
 const axios = require("axios");
 const { encode, decode } = require("gpt-3-encoder");
 const { Client, Events, GatewayIntentBits } = require("discord.js");
@@ -24,6 +25,35 @@ const fixGrammarUsers = [
   "309119244979798016", // Wlastas
   // "405507382207315978", // h0x91b
 ];
+
+function downloadAudio(url, filename) {
+  return axios
+    .get(url, { responseType: "stream" })
+    .then((response) => {
+      response.data.pipe(fs.createWriteStream(filename));
+      console.log(`Audio file saved as "${filename}"`);
+    })
+    .catch((error) => {
+      console.error("Error downloading audio file:", error.message);
+    });
+}
+
+function synthesizeSpeech(voiceId, text, format = "mp3") {
+  const url = "https://api.voice.steos.io/v1/get/tts";
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Authorization: API_KEY,
+  };
+
+  const body = {
+    voice_id: voiceId,
+    text,
+    format,
+  };
+
+  return axios.post(url, body, { headers });
+}
 
 client.on("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -291,6 +321,31 @@ async function handleMessageWithEmiliaMention(msg) {
   const gptConversation = await fetchMessageHistory(msg);
   const response = await gpt(msg, gptConversation);
   sendSplitResponse(msg, response);
+  const voiceId = 13;
+  const text = response;
+  const format = "mp3";
+
+  const { data: synthesisData } = await synthesizeSpeech(voiceId, text, format);
+
+  if (synthesisData.status) {
+    const file = `/tmp/output.${Math.floor(Math.random() * 1000)}.${
+      synthesisData.format
+    }`;
+    await downloadAudio(synthesisData.audio_url, file);
+    // Create a new MessageAttachment instance
+    const attachment = new MessageAttachment(file);
+
+    // Send the attachment in the message
+    await message.reply({ files: [attachment] });
+    //
+
+    setTimeout(() => {
+      // delete file
+      fs.unlinkSync(file);
+    }, 5000);
+  } else {
+    console.error("Error synthesizing speech:", synthesisData.message);
+  }
 }
 
 function calculateTokens(text) {
