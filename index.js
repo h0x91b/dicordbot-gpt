@@ -34,10 +34,10 @@ const fixGrammarUsers = [
 function downloadAudio(url, filename, msg) {
   return axios
     .get(url, { responseType: "stream" })
-    .then((response) => {
+    .then(async (response) => {
       response.data.pipe(fs.createWriteStream(filename));
       console.log(`Audio file saved as "${filename}"`);
-      msg.reply({ content: "Here is your MP3 file:", files: [filename] });
+      await msg.reply({ content: "Here is your MP3 file:", files: [filename] });
 
       setTimeout(() => {
         // delete file
