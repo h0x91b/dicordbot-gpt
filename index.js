@@ -37,11 +37,11 @@ function downloadAudio(url, filename, msg) {
     .then((response) => {
       response.data.pipe(fs.createWriteStream(filename));
       console.log(`Audio file saved as "${filename}"`);
-      msg.reply({ content: "Here is your MP3 file:", files: [file] });
+      msg.reply({ content: "Here is your MP3 file:", files: [filename] });
 
       setTimeout(() => {
         // delete file
-        fs.unlinkSync(file);
+        fs.unlinkSync(filename);
       }, 5000);
     })
     .catch((error) => {
