@@ -344,7 +344,7 @@ async function handleMessageWithEmiliaMention(msg) {
   const gptConversation = await fetchMessageHistory(msg);
   const response = await gpt(msg, gptConversation);
   // sendSplitResponse(msg, response);
-  const voiceId = 13;
+  const voiceId = 18;
   const text = response;
   const format = "mp3";
 
