@@ -229,7 +229,7 @@ async function gpt(msg, conversation) {
   const now = Date.now();
   const systemMessage = buildSystemMessage(msg);
   const messages = [];
-  if (conversation.length < 5) {
+  if (conversation.length < 2) {
     messages.push({
       role: "system",
       content: systemMessage,
