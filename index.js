@@ -114,7 +114,7 @@ async function fetchMessageHistory(msg) {
   const gptConversation = [];
 
   let content = msg.content.replace("!gpt", "").replace("!гпт", "");
-  const tokens =
+  let tokens =
     calculateTokens(content) + calculateTokens(buildSystemMessage(msg));
   const MAX_TOKENS = 4000;
   if (tokens > MAX_TOKENS) {
