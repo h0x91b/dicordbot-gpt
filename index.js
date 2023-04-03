@@ -170,10 +170,22 @@ User: "$!43423432!#@"
           content: lastMessages.map(({ content }) => content).join("\n"),
         },
       ],
-      prompt
+      {
+        overrideSystemMessage: prompt,
+        skipCost: true,
+        skipCounter: true,
+        skipReactions: true,
+      }
     );
     console.log("fix grammar response: ", response);
     try {
+      const obj = JSON.parse(response);
+      if (!obj.errorCount) return;
+      await msg.reply(`Fixed ${obj.errorCount} grammar errors:
+\`\`\`
+${obj.fixed}
+\`\`\`
+`);
     } catch (e) {
       console.error(e);
     }
@@ -308,9 +320,18 @@ function getGPTModelName(msg) {
   return "gpt-3.5-turbo";
 }
 
-async function gpt(msg, conversation, overrideSystemMessage = null) {
+async function gpt(
+  msg,
+  conversation,
+  options = {
+    overrideSystemMessage: null,
+    skipCost: false,
+    skipReactions: false,
+  }
+) {
   const now = Date.now();
-  const systemMessage = overrideSystemMessage || buildSystemMessage(msg);
+  const systemMessage =
+    overrideSystemMessage?.overrideSystemMessage || buildSystemMessage(msg);
   const messages = [];
   if (conversation.length < 1) {
     messages.push({
@@ -371,7 +392,7 @@ async function gpt(msg, conversation, overrideSystemMessage = null) {
       }
     }
 
-    timeout = setTimeout(fn, maxResponseTime / 10);
+    if (!options.skipReactions) timeout = setTimeout(fn, maxResponseTime / 10);
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       requestBody,
@@ -388,6 +409,7 @@ async function gpt(msg, conversation, overrideSystemMessage = null) {
     console.log("gpt response", choices, meta);
     const responseTime = ((Date.now() - now) / 1000).toFixed(2);
     console.log("responseTime", responseTime);
+    if (options.skipCost) return choices[0].message.content;
     let price = ((meta.usage.total_tokens / 1000) * 0.002).toFixed(4);
     if (model === "gpt-4") {
       price = (
