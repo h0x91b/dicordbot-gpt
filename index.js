@@ -120,7 +120,7 @@ client.on(Events.MessageCreate, async (msg) => {
       currentTestPrompt = prompt;
       await msg.reply(`New prompt: "${currentTestPrompt}"`);
     } else if (fixGrammarUsers.includes(msg.author.id)) {
-      await handleGrammarFix(msg);
+      await handleGrammarFix2(msg);
     }
   } catch (e) {
     console.error(e);
