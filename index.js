@@ -207,7 +207,9 @@ async function handleGrammarFix2(msg) {
   }
   grammarTimers[msg.author.id] = setTimeout(async () => {
     delete grammarTimers[msg.author.id];
-    const prompt = `You are an assistant to an disabled person with tunnel syndrome, he's writing text by missing the buttons, your job is to figure out what he was trying to type. You should detect what language he is typing and answer using only the same language.
+    const prompt = `You are an assistant to an disabled person with tunnel syndrome,
+he's writing text by missing the buttons, your job is to figure out what he was trying to type. 
+You should detect what language he is typing and answer using only the same language.
 
 Don't type anything except user's fixed input.
 
@@ -222,6 +224,10 @@ User: "тут еше бывает мусор проивается"
 Example 3:
 User: "зщадеваешь пальцы опухшиек не всегал попадают точно по одной копке"
 задеваешь, пальцы опухшие, не всегда попадают точно по одной кнопке.
+
+Example 4:
+User: "блин 8 вечера я не щарелищзился). я кароче жту забисьотклчаю на сутки. соори))"
+блин 8 вечера я еще не зарелизился). я короче эту запись отключаю на сутки. сорри))
 ---`;
     const lastId = lastUserMessageId[msg.author.id] || 0;
     const lastMessages = (
