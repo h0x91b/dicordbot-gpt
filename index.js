@@ -1,6 +1,6 @@
 require("dotenv").config();
 const axios = require("axios");
-
+const { encode, decode } = require("gpt-3-encoder");
 const { Client, Events, GatewayIntentBits } = require("discord.js");
 
 const availableDiscordChannels = [];
@@ -98,28 +98,50 @@ async function handleMessageWithEmiliaMention(msg) {
   sendSplitResponse(msg, response);
 }
 
-async function fetchMessageHistory(msg) {
-  const messages = [];
-  let refMsg = msg.reference?.messageId;
-  for (let i = 0; i < 6; i++) {
-    if (refMsg) {
-      const refMsgObj = await loadReferenceMessage(msg, refMsg);
-      messages.push(refMsgObj);
-      refMsg = refMsgObj.reference?.messageId;
-    }
-  }
-  let gptConversation = messages.map((m) => {
-    const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
+function calculateTokens(text) {
+  const tokens = encode(text);
+  return tokens.length;
+}
 
-    const cleanedMessage = m.content.replace(regex, "").trim();
-    return {
-      role: m.author.bot ? "assistant" : "user",
-      content: cleanedMessage,
-    };
-  });
-  gptConversation.reverse();
+function limitTokens(text, maxTokens) {
+  const tokens = encode(text);
+  const limitedTokens = tokens.slice(tokens.length - maxTokens, tokens.length);
+  return decode(limitedTokens);
+}
+
+async function fetchMessageHistory(msg) {
+  let refMsg = msg.reference?.messageId;
+  const gptConversation = [];
 
   let content = msg.content.replace("!gpt", "").replace("!гпт", "");
+  const tokens =
+    calculateTokens(content) + calculateTokens(buildSystemMessage(msg));
+  const MAX_TOKENS = 4000;
+  if (tokens > MAX_TOKENS) {
+    throw new Error("ERROR: Message is too long, please shorten it");
+  }
+
+  for (let i = 0; i < 20; i++) {
+    if (refMsg) {
+      const refMsgObj = await loadReferenceMessage(msg, refMsg);
+      const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
+      const cleanedMessage = refMsgObj.content.replace(regex, "").trim();
+      let msgTokens = calculateTokens(cleanedMessage);
+      if (msgTokens + tokens > MAX_TOKENS) {
+        cleanedMessage = limitTokens(cleanedMessage, MAX_TOKENS - tokens);
+        tokens = MAX_TOKENS;
+      } else {
+        tokens += msgTokens;
+      }
+      gptConversation.unshift({
+        role: refMsgObj.author.bot ? "assistant" : "user",
+        content: cleanedMessage,
+      });
+      refMsg = refMsgObj.reference?.messageId;
+      if (tokens >= MAX_TOKENS) break;
+    }
+  }
+
   if (
     authorsToAllowGPT4.includes(msg.author.username) &&
     msg.attachments.size > 0
@@ -138,6 +160,8 @@ async function fetchMessageHistory(msg) {
     role: "user",
     content,
   });
+
+  console.log("gptConversation tokens", tokens);
 
   return gptConversation;
 }
