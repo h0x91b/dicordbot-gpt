@@ -35,14 +35,26 @@ function downloadAudio(url, filename, msg) {
   return axios
     .get(url, { responseType: "stream" })
     .then(async (response) => {
-      response.data.pipe(fs.createWriteStream(filename));
-      console.log(`Audio file saved as "${filename}"`);
-      await msg.reply({ content: "Here is your MP3 file:", files: [filename] });
+      const writeStream = fs.createWriteStream(filename);
 
-      setTimeout(() => {
-        // delete file
-        fs.unlinkSync(filename);
-      }, 5000);
+      // Pipe the response data into the write stream
+      response.data.pipe(writeStream);
+
+      // Listen for the 'finish' event on the write stream
+      writeStream.on("finish", async () => {
+        console.log(`Audio file saved as "${filename}"`);
+
+        // Send the MP3 file after the download has finished
+        await msg.reply({
+          content: "Here is your MP3 file:",
+          files: [filename],
+        });
+
+        setTimeout(() => {
+          // delete file
+          fs.unlinkSync(filename);
+        }, 5000);
+      });
     })
     .catch((error) => {
       console.error("Error downloading audio file:", error.message);
@@ -339,7 +351,7 @@ async function handleMessageWithEmiliaMention(msg) {
   const { data: synthesisData } = await synthesizeSpeech(voiceId, text, format);
 
   if (synthesisData.status) {
-    const file = `/tmp/output.${Math.floor(Math.random() * 1000)}.${
+    const file = `output.${Math.floor(Math.random() * 1000)}.${
       synthesisData.format
     }`;
     await downloadAudio(synthesisData.audio_url, file, msg);
