@@ -344,7 +344,8 @@ async function handleMessageWithEmiliaMention(msg) {
   const gptConversation = await fetchMessageHistory(msg);
   const response = await gpt(msg, gptConversation);
   // sendSplitResponse(msg, response);
-  const voiceId = 18;
+  // const voiceId = 18;
+  const voiceId = 194;
   const text = response;
   const format = "mp3";
 
@@ -358,7 +359,7 @@ async function handleMessageWithEmiliaMention(msg) {
   );
 
   if (synthesisData.status) {
-    const file = `output.${Math.floor(Math.random() * 1000)}.${
+    const file = `output.${Math.floor(Math.random() * 1000000)}.${
       synthesisData.format
     }`;
     await downloadAudio(synthesisData.audio_url, file, msg, response);
