@@ -88,6 +88,7 @@ async function getUserLastMessage(msg, count = 10, maxTime = 1000 * 60 * 5) {
       createdTimestamp,
       content,
     }));
+  userMessages.reverse();
   return userMessages;
 }
 
@@ -186,9 +187,7 @@ User: "$!43423432!#@"
 ${obj.fixed}
 \`\`\`
 `);
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (e) {}
   }, 15000);
 }
 
