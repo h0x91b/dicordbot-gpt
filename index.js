@@ -32,33 +32,26 @@ const fixGrammarUsers = [
 ];
 
 function downloadAudio(url, filename, msg, text) {
-  return axios
-    .get(url, { responseType: "stream" })
-    .then(async (response) => {
-      const writeStream = fs.createWriteStream(filename);
+  return new Promise((resolve, reject) => {
+    axios
+      .get(url, { responseType: "stream" })
+      .then(async (response) => {
+        const writeStream = fs.createWriteStream(filename);
 
-      // Pipe the response data into the write stream
-      response.data.pipe(writeStream);
+        // Pipe the response data into the write stream
+        response.data.pipe(writeStream);
 
-      // Listen for the 'finish' event on the write stream
-      writeStream.on("finish", async () => {
-        console.log(`Audio file saved as "${filename}"`);
+        // Listen for the 'finish' event on the write stream
+        writeStream.on("finish", async () => {
+          console.log(`Audio file saved as "${filename}"`);
 
-        // Send the MP3 file after the download has finished
-        await msg.reply({
-          content: text,
-          files: [filename],
+          resolve(filename);
         });
-
-        setTimeout(() => {
-          // delete file
-          fs.unlinkSync(filename);
-        }, 5000);
+      })
+      .catch((error) => {
+        console.error("Error downloading audio file:", error.message);
       });
-    })
-    .catch((error) => {
-      console.error("Error downloading audio file:", error.message);
-    });
+  });
 }
 
 function synthesizeSpeech(voiceId, text, format = "mp3") {
@@ -337,22 +330,21 @@ async function handleGpt(msg) {
       content: msg.content.replace("!gpt", "").replace("!гпт", ""),
     },
   ]);
-  sendSplitResponse(msg, response);
+  return generateVoiceResponse(msg, response);
+  // sendSplitResponse(msg, response);
 }
 
-async function handleMessageWithEmiliaMention(msg) {
-  msg.react("👍");
-  const gptConversation = await fetchMessageHistory(msg);
-  const response = await gpt(msg, gptConversation);
+async function generateVoiceResponse(msg, response) {
   // sendSplitResponse(msg, response);
   // const voiceId = 18;
-  // const voiceId = 194;
-  const voiceId = 13;
+  const voiceId = 194;
+  // const voiceId = 13;
   const text = response;
   const format = "mp3";
 
   const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
-  let cleanedMessage = text.replace(regex, "").trim();
+  const regex2 = /||(.*)||/g;
+  let cleanedMessage = text.replace(regex, "").replace(regex2, "").trim();
 
   const { data: synthesisData } = await synthesizeSpeech(
     voiceId,
@@ -365,9 +357,26 @@ async function handleMessageWithEmiliaMention(msg) {
       synthesisData.format
     }`;
     await downloadAudio(synthesisData.audio_url, file, msg, response);
+    // Send the MP3 file after the download has finished
+    await msg.reply({
+      content: response,
+      files: [file],
+    });
+
+    setTimeout(() => {
+      // delete file
+      fs.unlinkSync(file);
+    }, 5000);
   } else {
     console.error("Error synthesizing speech:", synthesisData.message);
   }
+}
+
+async function handleMessageWithEmiliaMention(msg) {
+  msg.react("👍");
+  const gptConversation = await fetchMessageHistory(msg);
+  const response = await gpt(msg, gptConversation);
+  return generateVoiceResponse(msg, response);
 }
 
 function calculateTokens(text) {
