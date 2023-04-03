@@ -18,11 +18,11 @@ const client = new Client({
 });
 
 const authorsToAllowGPT4 = [
-  405507382207315978, //h0x91b
+  "405507382207315978", //h0x91b
 ];
 const fixGrammarUsers = [
-  309119244979798016, // Wlastas
-  405507382207315978, // h0x91b
+  "309119244979798016", // Wlastas
+  "405507382207315978", // h0x91b
 ];
 
 client.on("ready", async () => {
@@ -130,6 +130,7 @@ client.on(Events.MessageCreate, async (msg) => {
 let grammarTimers = {};
 
 async function handleGrammarFix(msg) {
+  console.log("handleGrammarFix", msg.content, msg.author.username);
   if (grammarTimers[msg.author.id]) {
     clearTimeout(grammarTimers[msg.author.id]);
   }
