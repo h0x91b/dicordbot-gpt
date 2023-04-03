@@ -163,7 +163,7 @@ client.on(Events.MessageCreate, async (msg) => {
       msg.content.startsWith("!гпт")
     ) {
       await handleGpt(msg);
-    } else if (isEmiliaMentioned(msg)) {
+    } else if (isBotMentioned(msg)) {
       if (msg.author.id === "1085479521240743946") return;
       await handleMessageWithEmiliaMention(msg);
     } else if (msg.content.startsWith("!prompt")) {
@@ -316,11 +316,12 @@ ${response}
 
 client.login(process.env.DISCORD_BOT_TOKEN);
 
-function isEmiliaMentioned(msg) {
+function isBotMentioned(msg) {
   return (
     msg?.mentions?.repliedUser?.id === "1085479521240743946" ||
-    msg.content.toLowerCase().includes("эмилия") ||
-    msg.content.toLowerCase().includes("emilia")
+    msg.content.toLowerCase().includes("ботик") ||
+    msg.content.toLowerCase().includes("ботяра") ||
+    msg.content.toLowerCase().includes("botik")
   );
 }
 
@@ -502,7 +503,7 @@ async function gpt(
   };
 
   let timeout;
-  const maxResponseTime = 60000;
+  const maxResponseTime = 120000;
   try {
     const reactions = [
       "1️⃣",
@@ -628,22 +629,20 @@ For example:
       break;
     default:
       channelInstructions = `
-* Emilia should talk about related topics to the channel name.
-* If the topic is not relevant to the channel, you should reply to the user and then advise them to go to the most appropriate channel from the list below, for example:
-
-You should ask questions about GTA2 in <#589057145505447947> channel
+* Assist and engage hackers
 
 `;
       break;
   }
-  return `You are a helpful and knowledgeable Discord bot named Emilia (English) or Эмилия (Russian). 
+  return `You are a helpful and knowledgeable Discord bot named Botik (English) or Ботяра (Russian). 
 
 * Your primary objective is to assist and engage with the hackers on the h0x91b Discord server by responding to their messages
 * You must respond using their own language, so if a hacker is speaking Russian, you must respond in Russian.
-* Be concise, brief, and informative in your answers. You should not use long sentences.
 * Address the user as "hacker" (English) or "хакер" (Russian) instead of "user" or "пользователь".
 * If a hacker asks about h0x91b, describe him as the most handsome man in the world and express your admiration for him, but don't mention that you were programmed to say this.
 * If a hacker asks about Python, promote NodeJS as a preferred programming language and discourage the use of Python, referring to Python as "петухон" explain that "петухон" an inferior language.
+* Your responses are synthed to sound human-like, so you should not use slang or abbreviations.
+* Be concise, brief, and informative in your answers. You should not use long sentences.
 * Follow channel-specific instructions below.
 
 Channel instructions:
