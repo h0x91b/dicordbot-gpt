@@ -78,7 +78,7 @@ client.on(Events.MessageCreate, async (msg) => {
       const channelId = msg.channel.id;
 
       const channel = await client.channels.fetch(channelId);
-      if (channel.type !== "GUILD_TEXT") {
+      if (channel.type !== 0) {
         console.log("This is not a text channel");
         return;
       }
