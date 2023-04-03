@@ -125,7 +125,7 @@ async function fetchMessageHistory(msg) {
     if (refMsg) {
       const refMsgObj = await loadReferenceMessage(msg, refMsg);
       const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
-      const cleanedMessage = refMsgObj.content.replace(regex, "").trim();
+      let cleanedMessage = refMsgObj.content.replace(regex, "").trim();
       let msgTokens = calculateTokens(cleanedMessage);
       if (msgTokens + tokens > MAX_TOKENS) {
         cleanedMessage = limitTokens(cleanedMessage, MAX_TOKENS - tokens);
