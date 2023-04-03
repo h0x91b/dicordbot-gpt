@@ -130,7 +130,7 @@ client.on(Events.MessageCreate, async (msg) => {
 let grammarTimers = {};
 
 async function handleGrammarFix(msg) {
-  console.log("handleGrammarFix", msg.content, msg.author.username);
+  console.log("handleGrammarFix", msg.author.username, msg.content);
   if (grammarTimers[msg.author.id]) {
     clearTimeout(grammarTimers[msg.author.id]);
   }
@@ -331,7 +331,7 @@ async function gpt(
 ) {
   const now = Date.now();
   const systemMessage =
-    overrideSystemMessage?.overrideSystemMessage || buildSystemMessage(msg);
+    options?.overrideSystemMessage || buildSystemMessage(msg);
   const messages = [];
   if (conversation.length < 1) {
     messages.push({
