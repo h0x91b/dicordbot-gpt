@@ -161,6 +161,8 @@ User: "кароче\nон дал дал даобро на шитхаб твой"
 User: "$!43423432!#@"
 {"errorCount": 0, "errors": [], "fixed": "$!43423432!#@"}
 ---
+
+don't forget to replace new lines with \\n in the "fixed" field.
 `;
     const lastMessages = await getUserLastMessage(msg, 10, 1000 * 60 * 5);
     const response = await gpt(
