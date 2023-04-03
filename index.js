@@ -165,10 +165,8 @@ User: "$!43423432!#@"
 ---
 `;
     const lastId = lastUserMessageId[msg.author.id] || 0;
-    const lastMessages = await getUserLastMessage(
-      msg,
-      10,
-      1000 * 60 * 5
+    const lastMessages = (
+      await getUserLastMessage(msg, 10, 1000 * 60 * 5)
     ).filter(({ createdTimestamp }) => createdTimestamp > lastId);
     if (!lastMessages.length) return;
     const response = await gpt(
