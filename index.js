@@ -22,7 +22,7 @@ const authorsToAllowGPT4 = [
 ];
 const fixGrammarUsers = [
   "309119244979798016", // Wlastas
-  // "405507382207315978", // h0x91b
+  "405507382207315978", // h0x91b
 ];
 
 client.on("ready", async () => {
@@ -197,6 +197,60 @@ ${obj.fixed}
 \`\`\`
 `);
     } catch (e) {}
+  }, 15000);
+}
+
+async function handleGrammarFix2(msg) {
+  console.log("handleGrammarFix2", msg.author.username, msg.content);
+  if (grammarTimers[msg.author.id]) {
+    clearTimeout(grammarTimers[msg.author.id]);
+  }
+  grammarTimers[msg.author.id] = setTimeout(async () => {
+    delete grammarTimers[msg.author.id];
+    const prompt = `You are an assistant to an disabled person with tunnel syndrome, he's writing text by missing the buttons, your job is to figure out what he was trying to type. You should detect what language he is typing and answer using only the same language.
+
+Don't type anything except user's fixed input.
+
+Example 1:
+User: "я ъзх как тут поыфиксетьб
+я хз, как тут пофиксить.
+
+Example 2:
+User: "тут еше бывает мусор проивается"
+тут ещё бывает мусор просачивается
+
+Example 3:
+User: "зщадеваешь пальцы опухшиек не всегал попадают точно по одной копке"
+задеваешь, пальцы опухшие, не всегда попадают точно по одной кнопке.
+---`;
+    const lastId = lastUserMessageId[msg.author.id] || 0;
+    const lastMessages = (
+      await getUserLastMessage(msg, 10, 1000 * 60 * 5)
+    ).filter(({ createdTimestamp }) => createdTimestamp > lastId);
+    if (!lastMessages.length) return;
+    const response = await gpt(
+      msg,
+      [
+        {
+          role: "user",
+          content: `"${JSON.stringify(
+            lastMessages.map(({ content }) => content).join("\n")
+          )}"`,
+        },
+      ],
+      {
+        overrideSystemMessage: prompt,
+        skipCost: true,
+        skipCounter: true,
+        skipReactions: true,
+      }
+    );
+    console.log("fix grammar response: ", response);
+    await msg.reply(`Fixed grammar errors:
+\`\`\`
+${response}
+\`\`\`
+`);
   }, 15000);
 }
 
