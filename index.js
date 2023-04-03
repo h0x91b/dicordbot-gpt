@@ -31,12 +31,18 @@ const fixGrammarUsers = [
   // "405507382207315978", // h0x91b
 ];
 
-function downloadAudio(url, filename) {
+function downloadAudio(url, filename, msg) {
   return axios
     .get(url, { responseType: "stream" })
     .then((response) => {
       response.data.pipe(fs.createWriteStream(filename));
       console.log(`Audio file saved as "${filename}"`);
+      msg.reply({ content: "Here is your MP3 file:", files: [file] });
+
+      setTimeout(() => {
+        // delete file
+        fs.unlinkSync(file);
+      }, 5000);
     })
     .catch((error) => {
       console.error("Error downloading audio file:", error.message);
@@ -336,18 +342,7 @@ async function handleMessageWithEmiliaMention(msg) {
     const file = `/tmp/output.${Math.floor(Math.random() * 1000)}.${
       synthesisData.format
     }`;
-    await downloadAudio(synthesisData.audio_url, file);
-    // const payload = new MessagePayload(client, {
-    //   content: "play:",
-    //   files: [file],
-    // });
-
-    await msg.reply({ content: "Here is your MP3 file:", files: [file] });
-
-    setTimeout(() => {
-      // delete file
-      fs.unlinkSync(file);
-    }, 5000);
+    await downloadAudio(synthesisData.audio_url, file, msg);
   } else {
     console.error("Error synthesizing speech:", synthesisData.message);
   }
