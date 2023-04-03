@@ -84,11 +84,21 @@ client.on(Events.MessageCreate, async (msg) => {
       }
 
       const messages = await channel.messages.fetch({ limit: 50 });
+
       const userMessages = messages
         .filter((msg) => msg.author.id === userId)
-        .first(5);
+        .filter((msg) => Date.now() - msg.createdTimestamp < 1000 * 60 * 30) // last 30 minutes
+        .first(5)
+        .map(({ createdTimestamp, content }) => ({
+          createdTimestamp,
+          content,
+        }));
 
-      console.log("last 5 userMessages", userMessages);
+      msg.reply(`Last 5 messages in 30 minutes:
+\`\`\`
+${JSON.stringify(userMessages, null, 2)}
+\`\`\`
+`);
     } else if (
       msg.content.startsWith("!gpt") ||
       msg.content.startsWith("!гпт")
@@ -252,7 +262,7 @@ async function gpt(msg, conversation) {
     });
   }
   for (let i = 0; i < conversation.length; i++) {
-    if (2 === conversation.length - i) {
+    if (1 === conversation.length - i) {
       messages.push({
         role: "system",
         content: systemMessage,
