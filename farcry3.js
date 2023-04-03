@@ -16,7 +16,7 @@ module.exports = {
 
 Игрок "${msg.author.username}" это заложник, он у Вааса в плену. Монтенегро его ненавидит. 
 
-Each of your messages MUST contain at least 3 words from the list: ${badWords}
+Bad word list: ${badWords}
 
 Сообщения каждой роли должны быть выделенны, они должны начинаться с префикса и заканчиваться суффиксом:
 
@@ -56,6 +56,8 @@ __Рассказчик: Заложник потирает синяк под гл
 
 **Ваас Монтенегро: Хуила, мы сейчас с корешами выебем тебя и твою подружку, а потом заставим её откусить тебе хуй. Завернём в пакетик и отошлём по почте. Гони деньги еблан!!!**
 ---
+
+Each of Ваас messages MUST contain at least 3 words from the list of bad words.
 `;
   },
   farcryRolePlayENPrompt(msg) {
