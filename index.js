@@ -337,12 +337,12 @@ async function handleMessageWithEmiliaMention(msg) {
       synthesisData.format
     }`;
     await downloadAudio(synthesisData.audio_url, file);
-    const payload = new MessagePayload(client, {
-      content: "play:",
-      files: [file],
-    });
+    // const payload = new MessagePayload(client, {
+    //   content: "play:",
+    //   files: [file],
+    // });
 
-    await msg.reply(payload);
+    await msg.reply({ content: "Here is your MP3 file:", files: [file] });
 
     setTimeout(() => {
       // delete file
