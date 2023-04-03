@@ -145,6 +145,7 @@ The "errors" field is an array of strings in format "before -> after" where "bef
 The "fixed" field is a full fixed user input.
 
 If the user input can’t be parsed, return it in JSON without changes.
+New lines MUST be replaced by "\\n" in the "fixed" field to be a valid JSON.
 
 Here are several cases for your reference:
 
@@ -156,13 +157,11 @@ User: "он в разных интерпритаиях есть."
 {"errorCount": 1, "errors": [ "интерпритаиях -> "интерпретациях" ], "fixed": "он в разных интерпретациях есть."}
 ---
 User: "кароче\nон дал дал даобро на шитхаб твой"
-{"errorCount": 3, "errors": [ "кароче -> короче", "даобро -> добро", "шитхаб -> гитхаб" ], "fixed": "короче\nон дал дал добро на гитхаб твой"}
+{"errorCount": 3, "errors": [ "кароче -> короче", "даобро -> добро", "шитхаб -> гитхаб" ], "fixed": "короче\\nон дал дал добро на гитхаб твой"}
 ---
 User: "$!43423432!#@"
 {"errorCount": 0, "errors": [], "fixed": "$!43423432!#@"}
 ---
-
-don't forget to replace new lines with \\n in the "fixed" field.
 `;
     const lastMessages = await getUserLastMessage(msg, 10, 1000 * 60 * 5);
     const response = await gpt(
