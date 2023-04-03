@@ -17,7 +17,13 @@ const client = new Client({
   ],
 });
 
-const authorsToAllowGPT4 = ["h0x91b"];
+const authorsToAllowGPT4 = [
+  405507382207315978, //h0x91b
+];
+const fixGrammarUsers = [
+  309119244979798016, // Wlastas
+  405507382207315978, // h0x91b
+];
 
 client.on("ready", async () => {
   console.log(`Logged in as ${client.user.tag}!`);
@@ -62,63 +68,116 @@ client.on("ready", async () => {
   ];
 });
 
+async function getUserLastMessage(msg, count = 10, maxTime = 1000 * 60 * 5) {
+  const userId = msg.author.id;
+  const channelId = msg.channel.id;
+
+  const channel = await client.channels.fetch(channelId);
+  if (channel.type !== 0) {
+    console.log("This is not a text channel");
+    return;
+  }
+
+  const messages = await channel.messages.fetch({ limit: 50 });
+
+  const userMessages = messages
+    .filter((msg) => msg.author.id === userId)
+    .filter((msg) => Date.now() - msg.createdTimestamp < maxTime)
+    .first(count)
+    .map(({ createdTimestamp, content }) => ({
+      createdTimestamp,
+      content,
+    }));
+  return userMessages;
+}
+
 client.on(Events.MessageCreate, async (msg) => {
   console.log("on messageCreate", msg.content, {
     author: msg.author.username,
+    authorId: msg.author.id,
     channel: msg.channel.name,
     time: new Date().toISOString(),
     attachments: msg.attachments,
     parentName: msg.channel.parent?.name,
   });
   try {
+    if (msg.author.bot) return;
     if (msg.content === "!hello") {
-      handleHello(msg);
-    } else if (msg.content.startsWith("!getMessages")) {
-      const userId = msg.author.id;
-      const channelId = msg.channel.id;
-
-      const channel = await client.channels.fetch(channelId);
-      if (channel.type !== 0) {
-        console.log("This is not a text channel");
-        return;
-      }
-
-      const messages = await channel.messages.fetch({ limit: 50 });
-
-      const userMessages = messages
-        .filter((msg) => msg.author.id === userId)
-        .filter((msg) => Date.now() - msg.createdTimestamp < 1000 * 60 * 30) // last 30 minutes
-        .first(5)
-        .map(({ createdTimestamp, content }) => ({
-          createdTimestamp,
-          content,
-        }));
-
-      msg.reply(`Last 5 messages in 30 minutes:
-\`\`\`
-${JSON.stringify(userMessages, null, 2)}
-\`\`\`
-`);
+      await handleHello(msg);
     } else if (
       msg.content.startsWith("!gpt") ||
       msg.content.startsWith("!гпт")
     ) {
-      handleGpt(msg);
+      await handleGpt(msg);
     } else if (isEmiliaMentioned(msg)) {
       if (msg.author.id === "1085479521240743946") return;
-      handleMessageWithEmiliaMention(msg);
+      await handleMessageWithEmiliaMention(msg);
     } else if (msg.content.startsWith("!prompt")) {
       msg.reply(`Current prompt: "${currentTestPrompt}"`);
     } else if (msg.content.startsWith("!setprompt")) {
       const prompt = msg.content.replace("!setprompt", "").trim();
       currentTestPrompt = prompt;
-      msg.reply(`New prompt: "${currentTestPrompt}"`);
+      await msg.reply(`New prompt: "${currentTestPrompt}"`);
+    } else if (fixGrammarUsers.includes(msg.author.id)) {
+      await handleGrammarFix(msg);
     }
   } catch (e) {
     console.error(e);
     msg.reply("Error: " + e.message);
   }
 });
+
+let grammarTimers = {};
+
+async function handleGrammarFix(msg) {
+  if (grammarTimers[msg.author.id]) {
+    clearTimeout(grammarTimers[msg.author.id]);
+  }
+  grammarTimers[msg.author.id] = setTimeout(async () => {
+    delete grammarTimers[msg.author.id];
+    const prompt = `The AI assistant can analyze user input and correct grammatical errors in the user's native language:
+{"errorCount": errorCount, "errors": errors, "fixed": fixed}.
+
+The "errorCount" field is a count of found errors.
+The "errors" field is an array of strings in format "before -> after" where "before" is found misspelled word and "after" the fixed version.
+The "fixed" field is a full fixed user input.
+
+If the user input can’t be parsed, return it in JSON without changes.
+
+Here are several cases for your reference:
+
+---
+User: "I have a problim with myy VPN."
+{"errorCount": 2, "errors": [ "problim -> problem", "myy -> my" ], "fixed": "I have a problem with my VPN."}
+---
+User: "он в разных интерпритаиях есть."
+{"errorCount": 1, "errors": [ "интерпритаиях -> "интерпретациях" ], "fixed": "он в разных интерпретациях есть."}
+---
+User: "кароче\nон дал дал даобро на шитхаб твой"
+{"errorCount": 3, "errors": [ "кароче -> короче", "даобро -> добро", "шитхаб -> гитхаб" ], "fixed": "короче\nон дал дал добро на гитхаб твой"}
+---
+User: "$!43423432!#@"
+{"errorCount": 0, "errors": [], "fixed": "$!43423432!#@"}
+---
+`;
+    const lastMessages = await getUserLastMessage(msg, 10, 1000 * 60 * 5);
+    const response = await gpt(
+      msg,
+      [
+        {
+          role: "user",
+          content: lastMessages.map(({ content }) => content).join("\n"),
+        },
+      ],
+      prompt
+    );
+    console.log("fix grammar response: ", response);
+    try {
+    } catch (e) {
+      console.error(e);
+    }
+  }, 30000);
+}
 
 client.login(process.env.DISCORD_BOT_TOKEN);
 
@@ -199,10 +258,7 @@ async function fetchMessageHistory(msg) {
     }
   }
 
-  if (
-    authorsToAllowGPT4.includes(msg.author.username) &&
-    msg.attachments.size > 0
-  ) {
+  if (authorsToAllowGPT4.includes(msg.author.id) && msg.attachments.size > 0) {
     // image API is not enabled yet :(
     // const attachment = msg.attachments.first();
     // const response = await axios.get(attachment.url, {
@@ -244,18 +300,18 @@ function getGPTModelName(msg) {
   if (!msg || !msg.author.username) return "gpt-3.5-turbo";
   if (
     (msg?.content?.includes("gpt-4") || msg?.content?.includes("gpt4")) &&
-    authorsToAllowGPT4.includes(msg.author.username)
+    authorsToAllowGPT4.includes(msg.author.id)
   ) {
     return "gpt-4";
   }
   return "gpt-3.5-turbo";
 }
 
-async function gpt(msg, conversation) {
+async function gpt(msg, conversation, overrideSystemMessage = null) {
   const now = Date.now();
-  const systemMessage = buildSystemMessage(msg);
+  const systemMessage = overrideSystemMessage || buildSystemMessage(msg);
   const messages = [];
-  if (conversation.length < 2) {
+  if (conversation.length < 1) {
     messages.push({
       role: "system",
       content: systemMessage,
