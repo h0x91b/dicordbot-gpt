@@ -189,7 +189,7 @@ ${obj.fixed}
     } catch (e) {
       console.error(e);
     }
-  }, 30000);
+  }, 15000);
 }
 
 client.login(process.env.DISCORD_BOT_TOKEN);
