@@ -43,7 +43,7 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
   const headers = {
     Accept: "application/json",
     "Content-Type": "application/json",
-    Authorization: API_KEY,
+    Authorization: process.env.VOICE_STEOS_API_KEY,
   };
 
   const body = {
