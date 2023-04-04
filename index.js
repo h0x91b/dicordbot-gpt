@@ -318,7 +318,7 @@ ${response}
 client.login(process.env.DISCORD_BOT_TOKEN);
 
 function isBotMentioned(msg) {
-  const includesArray = ["ботик", "ботяра", "botik", "botan"];
+  const includesArray = ["ботик", "ботяра", "ботан", "botik", "botan"];
   return (
     msg?.mentions?.repliedUser?.id === "1085479521240743946" ||
     includesArray.some((include) => msg.content.toLowerCase().includes(include))
@@ -347,7 +347,8 @@ async function generateVoiceResponse(msg, response) {
   // sendSplitResponse(msg, response);
   // const voiceId = 18;
   // const voiceId = 194;
-  const voiceId = 100;
+  // const voiceId = 100;
+  const voiceId = 169;
   // const voiceId = 13;
   const text = response;
   const format = "mp3";
