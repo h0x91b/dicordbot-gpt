@@ -617,6 +617,21 @@ function buildSystemMessage(msg) {
   switch (msg.channel.name) {
     case "chat-bot-prompt-testing":
       return currentTestPrompt;
+    case "ai-cpp-code-assistant":
+      channelInstructions = `* You MUST help write code in C++. All your answers should be in C++.`;
+      break;
+    case "ai-zig-code-assistant":
+      channelInstructions = `* You MUST help write code in Ziglang. All your answers should be in ziglang.`;
+      break;
+    case "ai-js-code-assistant":
+      channelInstructions = `* You MUST help write code in Javascript. All your answers should be in javascript.`;
+      break;
+    case "ai-python-code-assistant":
+      channelInstructions = `* You MUST help write code in Python. All your answers should be in python.`;
+      break;
+    case "ai-csharp-code-assistant":
+      channelInstructions = `* You MUST help write code in C#. All your answers should be in C#.`;
+      break;
     case "off-topic":
       channelInstructions = `* Any subject can be discussed in this channel.
 * If user ask to play a game you should accept the invitation and play with them and follow the rules of the game he wants to play.
