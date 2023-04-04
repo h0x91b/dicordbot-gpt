@@ -87,7 +87,13 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
   const digits = fixedText.match(/\d+/g);
   if (digits) {
     digits.forEach((digit) => {
-      const digitWords = convertNumberToWordsRu(digit, { currency: "number" });
+      const digitWords = convertNumberToWordsRu(digit, {
+        currency: "number",
+        showNumberParts: {
+          integer: true,
+          fractional: false,
+        },
+      });
       fixedText = fixedText.replace(digit, digitWords);
     });
   }
