@@ -345,7 +345,12 @@ async function generateVoiceResponse(msg, response) {
 
   const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
   const regex2 = /||(.*)||/g;
-  let cleanedMessage = text.replace(regex, "").replace(regex2, "").trim();
+  const regex3 = /```(.*)```/g;
+  let cleanedMessage = text
+    .replace(regex, "")
+    .replace(regex2, "")
+    .replace(regex3, "")
+    .trim();
 
   const { data: synthesisData } = await synthesizeSpeech(
     voiceId,
