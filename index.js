@@ -31,6 +31,14 @@ const fixGrammarUsers = [
   // "405507382207315978", // h0x91b
 ];
 
+const skipVoiceInChannels = [
+  "ai-cpp-code-assistant",
+  "ai-zig-code-assistant",
+  "ai-js-code-assistant",
+  "ai-python-code-assistant",
+  "ai-csharp-code-assistant",
+];
+
 function downloadAudio(url, filename, msg, text) {
   return new Promise((resolve, reject) => {
     axios
@@ -335,6 +343,8 @@ async function handleGpt(msg) {
 }
 
 async function generateVoiceResponse(msg, response) {
+  if (skipVoiceInChannels.includes(msg.channel.name))
+    return sendSplitResponse(msg, response);
   // sendSplitResponse(msg, response);
   // const voiceId = 18;
   // const voiceId = 194;
