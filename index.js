@@ -330,7 +330,7 @@ async function handleHello(msg) {
 }
 
 async function handleGpt(msg) {
-  msg.react("👍");
+  msg.react("👀");
   const response = await gpt(msg, [
     {
       role: "user",
@@ -388,7 +388,7 @@ async function generateVoiceResponse(msg, response) {
 }
 
 async function handleMessageWithEmiliaMention(msg) {
-  msg.react("👍");
+  msg.react("👀");
   const gptConversation = await fetchMessageHistory(msg);
   const response = await gpt(msg, gptConversation);
   return generateVoiceResponse(msg, response);
@@ -531,6 +531,7 @@ async function gpt(
   const maxResponseTime = 120000;
   try {
     const reactions = [
+      "0️⃣",
       "1️⃣",
       "2️⃣",
       "3️⃣",
@@ -541,6 +542,7 @@ async function gpt(
       "8️⃣",
       "9️⃣",
       "🔟",
+      "💣",
     ];
 
     let currentIndex = 0;
@@ -562,7 +564,8 @@ async function gpt(
       }
     }
 
-    if (!options.skipReactions) timeout = setTimeout(fn, maxResponseTime / 10);
+    if (!options.skipReactions)
+      timeout = setTimeout(fn, maxResponseTime / reactions.length);
     const response = await axios.post(
       "https://api.openai.com/v1/chat/completions",
       requestBody,
