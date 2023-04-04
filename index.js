@@ -318,11 +318,10 @@ ${response}
 client.login(process.env.DISCORD_BOT_TOKEN);
 
 function isBotMentioned(msg) {
+  const includesArray = ["ботик", "ботяра", "botik", "botan"];
   return (
     msg?.mentions?.repliedUser?.id === "1085479521240743946" ||
-    msg.content.toLowerCase().includes("ботик") ||
-    msg.content.toLowerCase().includes("ботяра") ||
-    msg.content.toLowerCase().includes("botik")
+    includesArray.some((include) => msg.content.toLowerCase().includes(include))
   );
 }
 
