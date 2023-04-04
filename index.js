@@ -91,7 +91,7 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
 
   const body = {
     voice_id: voiceId,
-    text,
+    text: fixedText,
     format,
   };
 
