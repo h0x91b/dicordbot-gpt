@@ -73,7 +73,10 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
   };
 
   // replace "помочь" with "пом+очь"
-  let fixes = [["помочь", "пом+очь"]];
+  let fixes = [
+    ["+", "плюс"],
+    ["помочь", "пом+очь"],
+  ];
   let fixedText = text;
   fixes.forEach(([from, to]) => {
     // replace all
@@ -84,10 +87,11 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
   const digits = fixedText.match(/\d+/g);
   if (digits) {
     digits.forEach((digit) => {
-      const digitWords = convertNumberToWordsRu(digit);
+      const digitWords = convertNumberToWordsRu(digit, { currency: "number" });
       fixedText = fixedText.replace(digit, digitWords);
     });
   }
+  console.log("fixedText", fixedText);
 
   const body = {
     voice_id: voiceId,
