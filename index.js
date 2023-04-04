@@ -8,6 +8,8 @@ const {
   GatewayIntentBits,
   MessagePayload,
 } = require("discord.js");
+const convertNumberToWordsRu = require("number-to-words-ru").convert;
+
 const { farcryRolePlayRUPrompt, farcryRolePlayENPrompt } = require("./farcry3");
 
 let availableDiscordChannels = [];
@@ -69,6 +71,23 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
     "Content-Type": "application/json",
     Authorization: process.env.VOICE_STEOS_API_KEY,
   };
+
+  // replace "помочь" with "пом+очь"
+  let fixes = [["помочь", "пом+очь"]];
+  let fixedText = text;
+  fixes.forEach(([from, to]) => {
+    // replace all
+    fixedText = fixedText.replace(new RegExp(from, "g"), to);
+  });
+
+  // find all digits and convert them to words
+  const digits = fixedText.match(/\d+/g);
+  if (digits) {
+    digits.forEach((digit) => {
+      const digitWords = convertNumberToWordsRu(digit);
+      fixedText = fixedText.replace(digit, digitWords);
+    });
+  }
 
   const body = {
     voice_id: voiceId,
@@ -354,7 +373,7 @@ async function generateVoiceResponse(msg, response) {
   const format = "mp3";
 
   const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
-  const regex2 = /||(.*)||/g;
+  const regex2 = /\|\|(.*)\|\|/g;
   const regex3 = /```(.*)```/g;
   let cleanedMessage = text
     .replace(regex, "")
