@@ -74,7 +74,7 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
 
   // replace "помочь" with "пом+очь"
   let fixes = [
-    ["+", "плюс"],
+    ["\\+", "плюс"],
     ["помочь", "пом+очь"],
   ];
   let fixedText = text;
