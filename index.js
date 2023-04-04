@@ -88,11 +88,18 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
   if (digits) {
     digits.forEach((digit) => {
       const digitWords = convertNumberToWordsRu(digit, {
-        currency: "number",
+        // currency: "number",
+        // showNumberParts: {
+        //   integer: true,
+        //   fractional: false,
+        // },
         showNumberParts: {
-          integer: true,
           fractional: false,
         },
+        showCurrency: {
+          integer: false,
+        },
+        // roundNumber: 0,
       });
       fixedText = fixedText.replace(digit, digitWords);
     });
