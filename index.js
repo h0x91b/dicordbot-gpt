@@ -39,6 +39,7 @@ const skipVoiceInChannels = [
   "ai-js-code-assistant",
   "ai-python-code-assistant",
   "ai-csharp-code-assistant",
+  "ai-any-language",
 ];
 
 function downloadAudio(url, filename, msg, text) {
@@ -679,6 +680,9 @@ function buildSystemMessage(msg) {
       return currentTestPrompt;
     case "ai-cpp-code-assistant":
       channelInstructions = `* You MUST help write code in C++. All your answers should be in C++.`;
+      break;
+    case "ai-any-language":
+      channelInstructions = `* You MUST help write code on any language.`;
       break;
     case "ai-zig-code-assistant":
       channelInstructions = `* You MUST help write code in Ziglang. All your answers should be in ziglang.`;
