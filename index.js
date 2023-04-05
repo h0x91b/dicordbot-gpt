@@ -77,6 +77,7 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
   let fixes = [
     ["\\+", "плюс"],
     ["помочь", "пом+очь"],
+    ["готов", "гот+ов"],
   ];
   let fixedText = text;
   fixes.forEach(([from, to]) => {
