@@ -33,7 +33,7 @@ const fixGrammarUsers = [
   // "405507382207315978", // h0x91b
 ];
 
-const skipVoiceInChannels = [
+const aiCodeAssistChannels = [
   "ai-cpp-code-assistant",
   "ai-zig-code-assistant",
   "ai-js-code-assistant",
@@ -369,18 +369,25 @@ async function handleHello(msg) {
 
 async function handleGpt(msg) {
   msg.react("👀");
-  const response = await gpt(msg, [
-    {
-      role: "user",
-      content: msg.content.replace("!gpt", "").replace("!гпт", ""),
-    },
-  ]);
+  const options = {};
+  if (aiCodeAssistChannels.includes(msg.channel.name))
+    options.putSystemMessageFirst = true;
+  const response = await gpt(
+    msg,
+    [
+      {
+        role: "user",
+        content: msg.content.replace("!gpt", "").replace("!гпт", ""),
+      },
+    ],
+    options
+  );
   return generateVoiceResponse(msg, response);
   // sendSplitResponse(msg, response);
 }
 
 async function generateVoiceResponse(msg, response) {
-  if (skipVoiceInChannels.includes(msg.channel.name))
+  if (aiCodeAssistChannels.includes(msg.channel.name))
     return sendSplitResponse(msg, response);
   // sendSplitResponse(msg, response);
   // const voiceId = 18;
@@ -429,7 +436,10 @@ async function generateVoiceResponse(msg, response) {
 async function handleMessageWithEmiliaMention(msg) {
   msg.react("👀");
   const gptConversation = await fetchMessageHistory(msg);
-  const response = await gpt(msg, gptConversation);
+  const options = {};
+  if (aiCodeAssistChannels.includes(msg.channel.name))
+    options.putSystemMessageFirst = true;
+  const response = await gpt(msg, gptConversation, options);
   return generateVoiceResponse(msg, response);
 }
 
@@ -536,20 +546,21 @@ async function gpt(
     overrideSystemMessage: null,
     skipCost: false,
     skipReactions: false,
+    putSystemMessageFirst: false,
   }
 ) {
   const now = Date.now();
   const systemMessage =
     options?.overrideSystemMessage || buildSystemMessage(msg);
   const messages = [];
-  if (conversation.length < 1) {
+  if (conversation.length < 1 || options?.putSystemMessageFirst) {
     messages.push({
       role: "system",
       content: systemMessage,
     });
   }
   for (let i = 0; i < conversation.length; i++) {
-    if (1 === conversation.length - i) {
+    if (1 === conversation.length - i && !options?.putSystemMessageFirst) {
       messages.push({
         role: "system",
         content: systemMessage,
