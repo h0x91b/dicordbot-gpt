@@ -347,7 +347,7 @@ User: "блин 8 вечера я не щарелищзился). я кароч�
     console.log("fix grammar response: ", response);
     lastUserMessageId[msg.author.id] = msg.createdTimestamp;
     await msg.channel
-      .send(`Fixed grammar errors for user "${msg.author.username}":
+      .send(`Fixed grammar errors for user "${msg.author.username}" in [this message](${msg.url}):
 \`\`\`
 ${response}
 \`\`\`
