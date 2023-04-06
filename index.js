@@ -326,6 +326,7 @@ User: "блин 8 вечера я не щарелищзился). я кароч�
       await getUserLastMessage(msg, 10, 1000 * 60 * 5)
     ).filter(({ createdTimestamp }) => createdTimestamp > lastId);
     if (!lastMessages.length) return;
+    if (lastMessages.map(({ content }) => content).join("").length < 5) return;
     const response = await gpt(
       msg,
       [
