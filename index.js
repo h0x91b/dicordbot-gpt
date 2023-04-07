@@ -78,11 +78,13 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
     ["\\+", "плюс"],
     ["помочь", "пом+очь"],
     ["готов", "гот+ов"],
+    ["писать", "пис+ать"],
+    ["дорогой", "дорог+ой"],
   ];
   let fixedText = text;
   fixes.forEach(([from, to]) => {
     // replace all
-    fixedText = fixedText.replace(new RegExp(from, "g"), to);
+    fixedText = fixedText.replace(new RegExp(from, "gi"), to);
   });
 
   // find all digits and convert them to words
@@ -673,7 +675,7 @@ async function gpt(
   }
 }
 
-let currentTestPrompt = `You are a helpful assistant`;
+let currentTestPrompt = `Исполняй роль шамана оракула, к тебе приходят люди с вопросами, а ты должен научить их мистическому ритуалу, отвечай на вопросы с максимальным мистицизмом и юмором`;
 
 function buildSystemMessage(msg) {
   let is_farcry3 =
