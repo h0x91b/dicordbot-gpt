@@ -309,21 +309,23 @@ he writes text, skipping or missing buttons, your task is to understand what he 
 You should only respond to counts of found words with typos and to fixed user input. e.g.
 NUMBER_OF_WORDS_WITH_TYPOS words fixed - FIXED_USER_INPUT
 
+All fixed words should be marked with **bold**.
+
 Example 1:
 User: "я ъзх как тут поыфиксетьб
-2 words fixed - я хз, как тут пофиксить.
+2 words fixed - я **хз**, как тут **пофиксить**.
 
 Example 2:
 User: "тут еше бывает мусор проивается"
-2 words fixed - тут ещё бывает мусор просачивается
+2 words fixed - тут **ещё** бывает мусор **просачивается**
 
 Example 3:
 User: "зщадеваешь пальцы опухшиек не всегал попадают точнр по одной копке"
-3 words fixed - задеваешь, пальцы опухшие, не всегда попадают точно по одной кнопке.
+3 words fixed - **задеваешь**, пальцы **опухшие**, не всегда попадают **точно** по одной кнопке.
 
 Example 4:
 User: "блин 8 вечера я не щарелищзился). я кароче жту забисьотклчаю на сутки. соори))"
-5 words fixed - блин 8 вечера я еще не зарелизился). я короче эту запись отключаю на сутки. сорри))
+6 words fixed - блин 8 вечера я не **зарелизился**). я **короче** **эту** **запись** **отключаю** на сутки. **сорри**))
 ---`;
     const lastId = lastUserMessageId[msg.author.id] || 0;
     const lastMessages = (
