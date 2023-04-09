@@ -303,11 +303,11 @@ async function handleGrammarFix2(msg) {
   }
   grammarTimers[msg.author.id] = setTimeout(async () => {
     delete grammarTimers[msg.author.id];
-    const prompt = `You are an assistant to an disabled person with tunnel syndrome,
-he's writing text by missing the buttons, your job is to figure out what he was trying to type. 
-You should detect what language he is typing and answer using only the same language.
+    const prompt = `You are an assistant to a disabled person with tunnel syndrome,
+he writes text, skipping or missing buttons, your task is to understand what he was trying to type. You must determine what language he is typing in, and answer using only that language. Hint, the user is usually talking about programming, games, and reverse-engineering, so he can use slang words.
 
-Don't type anything except user's fixed input.
+You should only respond to counts of found words with typos and to fixed user input. e.g.
+NUMBER_OF_WORDS_WITH_TYPOS words fixed - FIXED_USER_INPUT
 
 Example 1:
 User: "я ъзх как тут поыфиксетьб
