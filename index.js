@@ -407,7 +407,7 @@ async function generateVoiceResponse(msg, response) {
 
   const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
   const regex2 = /\|\|(.*)\|\|/g;
-  const regex3 = /```(.*)```/g;
+  const regex3 = /```(.*?)```/g;
   let cleanedMessage = text
     .replace(regex, "")
     .replace(regex2, "")
