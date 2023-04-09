@@ -355,9 +355,7 @@ User: "блин 8 вечера я не щарелищзился). я кароч�
     await msg.channel.send(`Fixed grammar errors for user "${
       msg.author.username
     }" in [this message](${msg.url}):
-\`\`\`
 ${response.replace(/\\n/g, "\n")}
-\`\`\`
 `);
   }, 45000);
 }
@@ -409,7 +407,7 @@ async function generateVoiceResponse(msg, response) {
 
   const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
   const regex2 = /\|\|(.*)\|\|/g;
-  const regex3 = /```(.*?)```/g;
+  const regex3 = /```([\s\S]*?)```/g;
   let cleanedMessage = text
     .replace(regex, "")
     .replace(regex2, "")
