@@ -437,6 +437,9 @@ async function generateVoiceResponse(msg, response) {
     }, 5000);
   } else {
     console.error("Error synthesizing speech:", synthesisData.message);
+    await msg.reply({
+      content: response,
+    });
   }
 }
 
