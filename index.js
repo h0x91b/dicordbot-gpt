@@ -306,26 +306,23 @@ async function handleGrammarFix2(msg) {
     const prompt = `You are an assistant to a disabled person with tunnel syndrome,
 he writes text, skipping or missing buttons, your task is to understand what he was trying to type. You must determine what language he is typing in, and answer using only that language. Hint, the user is usually talking about programming, games, and reverse-engineering, so he can use slang words.
 
-You should only respond to counts of found words with typos and to fixed user input. e.g.
-NUMBER_OF_WORDS_WITH_TYPOS words fixed - FIXED_USER_INPUT
-
-All fixed words should be marked with **bold**.
+You should only respond to fixed user input. All fixed words should be marked with **bold**.
 
 Example 1:
 User: "я ъзх как тут поыфиксетьб
-2 words fixed - я **хз**, как тут **пофиксить**.
+я **хз**, как тут **пофиксить**.
 
 Example 2:
 User: "тут еше бывает мусор проивается"
-2 words fixed - тут **ещё** бывает мусор **просачивается**
+тут **ещё** бывает мусор **просачивается**
 
 Example 3:
 User: "зщадеваешь пальцы опухшиек не всегал попадают точнр по одной копке"
-3 words fixed - **задеваешь**, пальцы **опухшие**, не всегда попадают **точно** по одной кнопке.
+**задеваешь**, пальцы **опухшие**, не всегда попадают **точно** по одной кнопке.
 
 Example 4:
 User: "блин 8 вечера я не щарелищзился). я кароче жту забисьотклчаю на сутки. соори))"
-6 words fixed - блин 8 вечера я не **зарелизился**). я **короче** **эту** **запись** **отключаю** на сутки. **сорри**))
+блин 8 вечера я не **зарелизился**). я **короче** **эту** **запись** **отключаю** на сутки. **сорри**))
 ---`;
     const lastId = lastUserMessageId[msg.author.id] || 0;
     const lastMessages = (
@@ -352,9 +349,10 @@ User: "блин 8 вечера я не щарелищзился). я кароч�
     );
     console.log("fix grammar response: ", response);
     lastUserMessageId[msg.author.id] = msg.createdTimestamp;
+    // in [this message](${msg.url})
     await msg.channel.send(`Fixed grammar errors for user "${
       msg.author.username
-    }" in [this message](${msg.url}):
+    }":
 ${response.replace(/\\n/g, "\n")}
 `);
   }, 45000);
