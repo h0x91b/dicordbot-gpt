@@ -29,7 +29,7 @@ const authorsToAllowGPT4 = [
   "405507382207315978", //h0x91b
 ];
 const fixGrammarUsers = [
-  "309119244979798016", // Wlastas
+  // "309119244979798016", // Wlastas
   // "405507382207315978", // h0x91b
 ];
 
