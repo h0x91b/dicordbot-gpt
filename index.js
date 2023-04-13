@@ -563,15 +563,33 @@ async function loadReferenceMessage(msg, messageId) {
  * @returns
  * @description Sends a message to the channel, splitting it if it's too long
  */
-function sendSplitResponse(msg, response) {
+async function sendSplitResponse(msg, text) {
+  let codeFile;
+  const regexCode = /```(?:([a-zA-Z0-9\+]+)\n)?([\s\S]*?)```/g;
+
+  let match = regexCode.exec(text);
+  let response = text.replace(regexCode, "");
+
+  if (match) {
+    const language = match[1] || "txt";
+    const code = match[2];
+
+    console.log("Language:", language);
+    console.log("Code:", code);
+
+    codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
+    await fsP.writeFile(codeFile, code);
+  }
+  let files = [];
+  if (codeFile) files.push(codeFile);
   if (response?.length > 1800) {
     const parts = response.match(/[\s\S]{1,1800}/g) || [];
     for (let i = 0; i < parts.length; i++) {
-      msg.reply(parts[i]);
+      msg.reply({ content: parts[i] });
     }
     return;
   }
-  msg.reply(response);
+  msg.reply({ content: response, files });
 }
 
 /**
