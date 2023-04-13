@@ -419,7 +419,7 @@ async function generateVoiceResponse(msg, response) {
   let match = regexCode.exec(text);
 
   if (match) {
-    const language = match[1] || ".txt";
+    const language = match[1] || "txt";
     const code = match[2];
 
     console.log("Language:", language);
