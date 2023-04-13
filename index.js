@@ -8,6 +8,9 @@ const {
   GatewayIntentBits,
   MessagePayload,
 } = require("discord.js");
+/**
+ * @typedef {import('discord.js').Message} Message
+ */
 const convertNumberToWordsRu = require("number-to-words-ru").convert;
 
 const { farcryRolePlayRUPrompt, farcryRolePlayENPrompt } = require("./farcry3");
@@ -391,6 +394,12 @@ async function handleGpt(msg) {
   // sendSplitResponse(msg, response);
 }
 
+/**
+ *
+ * @param {Message} msg
+ * @param {String} response
+ * @returns
+ */
 async function generateVoiceResponse(msg, response) {
   if (aiCodeAssistChannels.includes(msg.channel.name))
     return sendSplitResponse(msg, response);
@@ -525,6 +534,12 @@ async function loadReferenceMessage(msg, messageId) {
   return refMsgObj;
 }
 
+/**
+ * @param {Message} msg
+ * @param {String} response
+ * @returns
+ * @description Sends a message to the channel, splitting it if it's too long
+ */
 function sendSplitResponse(msg, response) {
   if (response?.length > 1800) {
     const parts = response.match(/[\s\S]{1,1800}/g) || [];
@@ -536,6 +551,10 @@ function sendSplitResponse(msg, response) {
   msg.reply(response);
 }
 
+/**
+ * @param {Message} msg
+ * @returns {String}
+ */
 function getGPTModelName(msg) {
   if (!msg || !msg.author.username) return "gpt-3.5-turbo";
   if (
@@ -680,6 +699,10 @@ async function gpt(
 
 let currentTestPrompt = `Исполняй роль шамана оракула, к тебе приходят люди с вопросами, а ты должен научить их мистическому многошаговому ритуалу и обряду, отвечай на вопросы с максимальным мистицизмом и юмором`;
 
+/**
+ * @param {Message} msg
+ * @returns {String}
+ */
 function buildSystemMessage(msg) {
   let is_farcry3 =
     msg.channel.name === "ai-farcry3" ||
