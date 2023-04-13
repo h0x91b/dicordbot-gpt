@@ -1,5 +1,6 @@
 require("dotenv").config();
 const fs = require("fs");
+const fsP = require("fs").promises;
 const axios = require("axios");
 const { encode, decode } = require("gpt-3-encoder");
 const {
@@ -425,7 +426,7 @@ async function generateVoiceResponse(msg, response) {
     console.log("Code:", code);
 
     codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
-    await fs.writeFile(codeFile, code);
+    await fsP.writeFile(codeFile, code);
   }
 
   const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
