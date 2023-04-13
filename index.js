@@ -425,7 +425,7 @@ async function generateVoiceResponse(msg, response) {
     console.log("Code:", code);
 
     codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
-    await fs.watchFile(codeFile, code);
+    await fs.writeFile(codeFile, code);
   }
 
   const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
