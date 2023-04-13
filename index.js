@@ -414,7 +414,7 @@ async function generateVoiceResponse(msg, response) {
   const format = "mp3";
 
   let codeFile;
-  const regexCode = /```(?:([a-zA-Z]+)\n)?([\s\S]*?)```/g;
+  const regexCode = /```(?:([a-zA-Z0-9\+]+)\n)?([\s\S]*?)```/g;
 
   let match = regexCode.exec(text);
 
