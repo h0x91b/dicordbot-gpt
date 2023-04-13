@@ -450,9 +450,11 @@ async function generateVoiceResponse(msg, response) {
     }`;
     await downloadAudio(synthesisData.audio_url, file, msg, response);
     // Send the MP3 file after the download has finished
+    let files = [file];
+    if (codeFile) files.push(codeFile);
     await msg.reply({
       content: response.replace(regex3, ""),
-      files: [file, codeFile],
+      files,
     });
 
     setTimeout(() => {
