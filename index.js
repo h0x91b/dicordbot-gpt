@@ -412,6 +412,20 @@ async function generateVoiceResponse(msg, response) {
   const text = response;
   const format = "mp3";
 
+  let codeFile;
+  let match = regex.exec(text);
+
+  if (match) {
+    const language = match[1] || ".txt";
+    const code = match[2];
+
+    console.log("Language:", language);
+    console.log("Code:", code);
+
+    codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
+    await fs.watchFile(codeFile, code);
+  }
+
   const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
   const regex2 = /\|\|(.*)\|\|/g;
   const regex3 = /```([\s\S]*?)```/g;
@@ -435,12 +449,13 @@ async function generateVoiceResponse(msg, response) {
     // Send the MP3 file after the download has finished
     await msg.reply({
       content: response,
-      files: [file],
+      files: [file, codeFile],
     });
 
     setTimeout(() => {
       // delete file
       fs.unlinkSync(file);
+      if (codeFile) fs.unlinkSync(codeFile);
     }, 5000);
   } else {
     console.error("Error synthesizing speech:", synthesisData.message);
@@ -471,6 +486,9 @@ function limitTokens(text, maxTokens) {
   return decode(limitedTokens);
 }
 
+/**
+ * @param {Message} msg
+ */
 async function fetchMessageHistory(msg) {
   let refMsg = msg.reference?.messageId;
   const gptConversation = [];
