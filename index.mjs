@@ -1,20 +1,17 @@
-require("dotenv").config();
-const fs = require("fs");
-const fsP = require("fs").promises;
-const axios = require("axios");
-const { encode, decode } = require("gpt-3-encoder");
-const {
-  Client,
-  Events,
-  GatewayIntentBits,
-  MessagePayload,
-} = require("discord.js");
-/**
- * @typedef {import('discord.js').Message} Message
- */
-const convertNumberToWordsRu = require("number-to-words-ru").convert;
+import { config } from "dotenv";
+config();
 
-const { farcryRolePlayRUPrompt, farcryRolePlayENPrompt } = require("./farcry3");
+import { promises as fsP, readFile as readF, writeFile as writeF } from "fs";
+import axios from "axios";
+import { encode, decode } from "gpt-3-encoder";
+import { Client, Events, GatewayIntentBits, MessagePayload } from "discord.js";
+import pkg from "number-to-words-ru";
+const { convert: convertNumberToWordsRu } = pkg;
+
+import {
+  farcryRolePlayRUPrompt,
+  farcryRolePlayENPrompt,
+} from "./lib/farcry3.mjs";
 
 let availableDiscordChannels = [];
 let rpgRole = "Trevor GTA 5";

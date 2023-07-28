@@ -2,10 +2,11 @@
   "name": "gpt-discord-bot",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.mjs",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon index.js"
+    "dev": "nodemon index.mjs",
+    "start": "node index.mjs"
   },
   "author": "",
   "license": "ISC",
@@ -14,7 +15,8 @@
     "discord.js": "^14.8.0",
     "dotenv": "^16.0.3",
     "gpt-3-encoder": "^1.1.4",
-    "number-to-words-ru": "^2.3.4"
+    "number-to-words-ru": "^2.3.4",
+    "langchain": "^0.0.118"
   },
   "devDependencies": {
     "nodemon": "^2.0.22"
