@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "nodemon index.js"
   },
   "author": "",
   "license": "ISC",
@@ -14,5 +15,8 @@
     "dotenv": "^16.0.3",
     "gpt-3-encoder": "^1.1.4",
     "number-to-words-ru": "^2.3.4"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
   }
 }

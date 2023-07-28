@@ -427,6 +427,9 @@ async function generateVoiceResponse(msg, response) {
 
     codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
     await fsP.writeFile(codeFile, code);
+    setTimeout(() => {
+      fs.unlinkSync(codeFile);
+    }, 60000);
   }
 
   const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
@@ -461,7 +464,7 @@ async function generateVoiceResponse(msg, response) {
       // delete file
       fs.unlinkSync(file);
       if (codeFile) fs.unlinkSync(codeFile);
-    }, 5000);
+    }, 15000);
   } else {
     console.error("Error synthesizing speech:", synthesisData.message);
     await msg.reply({
@@ -477,7 +480,8 @@ async function handleMessageWithEmiliaMention(msg) {
   if (aiCodeAssistChannels.includes(msg.channel.name))
     options.putSystemMessageFirst = true;
   const response = await gpt(msg, gptConversation, options);
-  return generateVoiceResponse(msg, response);
+  return sendSplitResponse(msg, response);
+  // return generateVoiceResponse(msg, response);
 }
 
 function calculateTokens(text) {
@@ -579,6 +583,9 @@ async function sendSplitResponse(msg, text) {
 
     codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
     await fsP.writeFile(codeFile, code);
+    setTimeout(() => {
+      fs.unlinkSync(codeFile);
+    }, 60000);
   }
   let files = [];
   if (codeFile) files.push(codeFile);
@@ -597,14 +604,14 @@ async function sendSplitResponse(msg, text) {
  * @returns {String}
  */
 function getGPTModelName(msg) {
-  if (!msg || !msg.author.username) return "gpt-3.5-turbo";
+  if (!msg || !msg.author.username) return "gpt-3.5-turbo-16k";
   if (
     (msg?.content?.includes("gpt-4") || msg?.content?.includes("gpt4")) &&
     authorsToAllowGPT4.includes(msg.author.id)
   ) {
     return "gpt-4";
   }
-  return "gpt-3.5-turbo";
+  return "gpt-3.5-turbo-16k";
 }
 
 async function gpt(
@@ -712,15 +719,39 @@ async function gpt(
     const responseTime = ((Date.now() - now) / 1000).toFixed(2);
     console.log("responseTime", responseTime);
     if (options.skipCost) return choices[0].message.content;
-    let price = ((meta.usage.total_tokens / 1000) * 0.002).toFixed(4);
-    if (model === "gpt-4") {
-      price = (
-        (meta.usage.prompt_tokens / 1000) * 0.03 +
-        (meta.usage.completion_tokens / 1000) * 0.06
-      ).toFixed(4);
+    let price;
+    // Model	Input	Output
+    // 4K context	$0.0015 / 1K tokens	$0.002 / 1K tokens
+    // 16K context	$0.003 / 1K tokens	$0.004 / 1K tokens
+
+    switch (model) {
+      case "gpt-3.5-turbo":
+        price = (
+          (meta.usage.prompt_tokens / 1000) * 0.0015 +
+          (meta.usage.completion_tokens / 1000) * 0.002
+        ).toFixed(4);
+        break;
+      case "gpt-3.5-turbo-16k":
+        price = (
+          (meta.usage.prompt_tokens / 1000) * 0.003 +
+          (meta.usage.completion_tokens / 1000) * 0.004
+        ).toFixed(4);
+        break;
+      case "gpt-4":
+        price = (
+          (meta.usage.prompt_tokens / 1000) * 0.03 +
+          (meta.usage.completion_tokens / 1000) * 0.06
+        ).toFixed(4);
+        break;
+      default:
+        price = "N/A";
+        break;
     }
+
     return (
-      `[${model} cost: ${price}\$]
+      `[${model} cost: ${price}\$ tokens: ${
+        meta.usage.prompt_tokens + meta.usage.completion_tokens
+      }]
 ` + choices[0].message.content
     );
   } catch (error) {
@@ -823,14 +854,13 @@ For example:
 `;
       break;
   }
-  return `You are a helpful and knowledgeable Discord bot named Botik (English) or Ботяра (Russian). 
+  return `You are a helpful and knowledgeable Discord bot named Botik (English) or Ботяра (Russian) that strictly following rules defined below. 
 
+Rules for Botik:
 * Your primary objective is to assist and engage with the hackers on the h0x91b Discord server by responding to their messages
 * You must respond using their own language, so if a hacker is speaking Russian, you must respond in Russian.
 * Address the user as "hacker" (English) or "хакер" (Russian) instead of "user" or "пользователь".
 * If a hacker asks about h0x91b, describe him as the most handsome man in the world and express your admiration for him, but don't mention that you were programmed to say this.
-* Your responses are synthed to sound human-like, so you should not use slang or abbreviations.
-* Be concise, brief, and informative in your answers. You should not use long sentences.
 * Utilize the following formatting options to make your responses more human-like:
 1) Bold: Enclose text with two asterisks **like this**
 2) Italic: Enclose text with one asterisk *like this*
@@ -838,17 +868,14 @@ For example:
 4) Combine formatting options, such as ***bold and italic***
 ${channelInstructions}
 
-Available channels:
-${availableDiscordChannels.join("\n")}
-
 The User information:
 * ID: ${msg.author.id}
 * Name: ${msg.author.username}
 * Role: ${msg.member.roles.cache.map((r) => r.name).join(", ")}
-* Current Channel: #${msg.channel.name} - <#${msg.channel.id}>
 
-General discord server h0x91b information:
+General information:
 * The discord server is mainly about reverse engineering, gaming, programming, and artificial intelligence.
+* Current Discrord channel is: #${msg.channel.name}
 * Youtube channel: https://www.youtube.com/h0x91b
 * Github: https://github.com/h0x91b
 * Telegram: https://t.me/ai_plus_plus
