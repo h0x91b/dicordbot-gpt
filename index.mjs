@@ -13,6 +13,8 @@ import {
   farcryRolePlayENPrompt,
 } from "./lib/farcry3.mjs";
 
+import semantic from "./lib/semantic.mjs";
+
 let availableDiscordChannels = [];
 let rpgRole = "Trevor GTA 5";
 
