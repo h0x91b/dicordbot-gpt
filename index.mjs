@@ -17,6 +17,8 @@ import {
   farcryRolePlayRUPrompt,
   farcryRolePlayENPrompt,
 } from "./lib/farcry3.mjs";
+import { coderChatbotHandler } from "./lib/coder-chatbot.mjs";
+import { loadReferenceMessage } from "./lib/discord.mjs";
 
 let availableDiscordChannels = [];
 let rpgRole = "Trevor GTA 5";
@@ -214,10 +216,18 @@ client.on(Events.MessageCreate, async (msg) => {
       msg.content.startsWith("!gpt") ||
       msg.content.startsWith("!гпт")
     ) {
-      await handleGpt(msg);
+      if (aiCodeAssistChannels.includes(msg.channel.name)) {
+        await coderChatbotHandler(msg);
+      } else {
+        await handleGpt(msg);
+      }
     } else if (isBotMentioned(msg)) {
       if (msg.author.id === "1085479521240743946") return;
-      await handleMessageWithEmiliaMention(msg);
+      if (aiCodeAssistChannels.includes(msg.channel.name)) {
+        await coderChatbotHandler(msg);
+      } else {
+        await handleMessageWithEmiliaMention(msg);
+      }
     } else if (msg.content.startsWith("!prompt")) {
       msg.reply(`Current prompt: "${currentTestPrompt}"`);
     } else if (msg.content.startsWith("!setprompt")) {
@@ -468,7 +478,7 @@ async function generateVoiceResponse(msg, response) {
     }, 60000);
   }
 
-  const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
+  const regex = /^\[([^\n]*)\]/;
   const regex2 = /\|\|(.*)\|\|/g;
   const regex3 = /```([\s\S]*?)```/g;
   let cleanedMessage = text
@@ -531,10 +541,7 @@ function limitTokens(text, maxTokens) {
   return decode(limitedTokens);
 }
 
-/**
- * @param {Message} msg
- */
-async function fetchMessageHistory(msg) {
+export async function fetchMessageHistory(msg) {
   let refMsg = msg.reference?.messageId;
   const gptConversation = [];
 
@@ -552,7 +559,7 @@ async function fetchMessageHistory(msg) {
   for (let i = 0; i < 20; i++) {
     if (refMsg) {
       const refMsgObj = await loadReferenceMessage(msg, refMsg);
-      const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
+      const regex = /^\[([^\n]*)\]/;
       let cleanedMessage = refMsgObj.content.replace(regex, "").trim();
       let msgTokens = calculateTokens(cleanedMessage);
       if (msgTokens + tokens > MAX_TOKENS) {
@@ -589,12 +596,6 @@ async function fetchMessageHistory(msg) {
   console.log("gptConversation tokens", tokens);
 
   return gptConversation;
-}
-
-async function loadReferenceMessage(msg, messageId) {
-  const refMsgObj = await msg?.channel?.messages.fetch(messageId);
-  // console.log("refMsgObj", refMsgObj);
-  return refMsgObj;
 }
 
 /**
