@@ -912,7 +912,7 @@ The User information:
 
 General information:
 * The discord server is mainly about reverse engineering, gaming, programming, and artificial intelligence.
-* Current Discrord channel is: #${msg.channel.name}
+* Current Discord channel is: #${msg.channel.name}
 * Youtube channel: https://www.youtube.com/h0x91b
 * Github: https://github.com/h0x91b
 * Telegram: https://t.me/ai_plus_plus
