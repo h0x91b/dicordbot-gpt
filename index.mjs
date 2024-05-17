@@ -1,7 +1,12 @@
 import { config } from "dotenv";
 config();
 
-import { promises as fsP, readFile as readF, writeFile as writeF } from "fs";
+import {
+  promises as fsP,
+  readFile as readF,
+  writeFile as writeF,
+  unlinkSync,
+} from "fs";
 import axios from "axios";
 import { encode, decode } from "gpt-3-encoder";
 import { Client, Events, GatewayIntentBits, MessagePayload } from "discord.js";
@@ -35,6 +40,7 @@ const client = new Client({
 
 const authorsToAllowGPT4 = [
   "405507382207315978", //h0x91b
+  "431153536768933888", //xxsemaxx
 ];
 const authorsToAllowDocIndex = [
   "405507382207315978", //h0x91b
@@ -437,8 +443,8 @@ async function handleGpt(msg) {
     ],
     options
   );
-  return generateVoiceResponse(msg, response);
-  // sendSplitResponse(msg, response);
+  // return generateVoiceResponse(msg, response);
+  sendSplitResponse(msg, response);
 }
 
 /**
@@ -448,6 +454,7 @@ async function handleGpt(msg) {
  * @returns
  */
 async function generateVoiceResponse(msg, response) {
+  return sendSplitResponse(msg, response);
   if (aiCodeAssistChannels.includes(msg.channel.name))
     return sendSplitResponse(msg, response);
   // sendSplitResponse(msg, response);
@@ -474,7 +481,7 @@ async function generateVoiceResponse(msg, response) {
     codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
     await fsP.writeFile(codeFile, code);
     setTimeout(() => {
-      fs.unlinkSync(codeFile);
+      unlinkSync(codeFile);
     }, 60000);
   }
 
@@ -509,7 +516,7 @@ async function generateVoiceResponse(msg, response) {
     setTimeout(() => {
       // delete file
       fs.unlinkSync(file);
-      if (codeFile) fs.unlinkSync(codeFile);
+      if (codeFile) unlinkSync(codeFile);
     }, 15000);
   } else {
     console.error("Error synthesizing speech:", synthesisData.message);
@@ -548,7 +555,7 @@ export async function fetchMessageHistory(msg) {
   let content = msg.content.replace("!gpt", "").replace("!гпт", "");
   let tokens =
     calculateTokens(content) + calculateTokens(buildSystemMessage(msg));
-  const MAX_TOKENS = 4500;
+  const MAX_TOKENS = 14000;
   if (tokens > MAX_TOKENS) {
     await msg.reply(
       `ERROR: Message is too long (${tokens} tokens), please shorten it`
@@ -621,7 +628,7 @@ async function sendSplitResponse(msg, text) {
     codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
     await fsP.writeFile(codeFile, code);
     setTimeout(() => {
-      fs.unlinkSync(codeFile);
+      unlinkSync(codeFile);
     }, 60000);
   }
   let files = [];
@@ -646,8 +653,9 @@ function getGPTModelName(msg) {
     (msg?.content?.includes("gpt-4") || msg?.content?.includes("gpt4")) &&
     authorsToAllowGPT4.includes(msg.author.id)
   ) {
-    return "gpt-4";
+    return "gpt-4o";
   }
+  return "gpt-4o";
   return "gpt-3.5-turbo-16k";
 }
 
@@ -764,20 +772,32 @@ async function gpt(
     switch (model) {
       case "gpt-3.5-turbo":
         price = (
-          (meta.usage.prompt_tokens / 1000) * 0.0015 +
-          (meta.usage.completion_tokens / 1000) * 0.002
+          (meta.usage.prompt_tokens / 1000000) * 1.5 +
+          (meta.usage.completion_tokens / 1000000) * 2.0
         ).toFixed(4);
         break;
       case "gpt-3.5-turbo-16k":
         price = (
-          (meta.usage.prompt_tokens / 1000) * 0.003 +
-          (meta.usage.completion_tokens / 1000) * 0.004
+          (meta.usage.prompt_tokens / 1000000) * 1.5 +
+          (meta.usage.completion_tokens / 1000000) * 2.0
         ).toFixed(4);
         break;
       case "gpt-4":
         price = (
-          (meta.usage.prompt_tokens / 1000) * 0.03 +
-          (meta.usage.completion_tokens / 1000) * 0.06
+          (meta.usage.prompt_tokens / 1000000) * 30.0 +
+          (meta.usage.completion_tokens / 1000000) * 60.0
+        ).toFixed(4);
+        break;
+      case "gpt-4-turbo":
+        price = (
+          (meta.usage.prompt_tokens / 1000000) * 10.0 +
+          (meta.usage.completion_tokens / 1000000) * 30.0
+        ).toFixed(4);
+        break;
+      case "gpt-4o":
+        price = (
+          (meta.usage.prompt_tokens / 1000000) * 5.0 +
+          (meta.usage.completion_tokens / 1000000) * 15.0
         ).toFixed(4);
         break;
       default:
