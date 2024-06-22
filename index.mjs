@@ -57,6 +57,7 @@ const aiCodeAssistChannels = [
   "ai-python-code-assistant",
   "ai-csharp-code-assistant",
   "ai-any-language",
+  "ai-rude",
 ];
 
 function downloadAudio(url, filename, msg, text) {
