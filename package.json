@@ -22,6 +22,7 @@
     "gpt-3-encoder": "^1.1.4",
     "js-tiktoken": "^1.0.7",
     "langchain": "^0.0.118",
+    "node-fetch": "^3.3.2",
     "number-to-words-ru": "^2.3.4",
     "openai": "^3.3.0"
   },
