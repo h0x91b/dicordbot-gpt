@@ -1,20 +1,29 @@
-require("dotenv").config();
-const fs = require("fs");
-const fsP = require("fs").promises;
-const axios = require("axios");
-const { encode, decode } = require("gpt-3-encoder");
-const {
-  Client,
-  Events,
-  GatewayIntentBits,
-  MessagePayload,
-} = require("discord.js");
-/**
- * @typedef {import('discord.js').Message} Message
- */
-const convertNumberToWordsRu = require("number-to-words-ru").convert;
+import { config } from "dotenv";
+config();
 
-const { farcryRolePlayRUPrompt, farcryRolePlayENPrompt } = require("./farcry3");
+import {
+  promises as fsP,
+  readFile as readF,
+  writeFile as writeF,
+  unlinkSync,
+} from "fs";
+import axios from "axios";
+import { encode, decode } from "gpt-3-encoder";
+import { Client, Events, GatewayIntentBits, MessagePayload } from "discord.js";
+import pkg from "number-to-words-ru";
+const { convert: convertNumberToWordsRu } = pkg;
+import {
+  chunkDocument,
+  indexDocument,
+  searchDocument,
+} from "./lib/indexer.mjs";
+
+import {
+  farcryRolePlayRUPrompt,
+  farcryRolePlayENPrompt,
+} from "./lib/farcry3.mjs";
+import { coderChatbotHandler } from "./lib/coder-chatbot.mjs";
+import { loadReferenceMessage } from "./lib/discord.mjs";
 
 let availableDiscordChannels = [];
 let rpgRole = "Trevor GTA 5";
@@ -31,6 +40,10 @@ const client = new Client({
 
 const authorsToAllowGPT4 = [
   "405507382207315978", //h0x91b
+  "431153536768933888", //xxsemaxx
+];
+const authorsToAllowDocIndex = [
+  "405507382207315978", //h0x91b
 ];
 const fixGrammarUsers = [
   // "309119244979798016", // Wlastas
@@ -44,6 +57,7 @@ const aiCodeAssistChannels = [
   "ai-python-code-assistant",
   "ai-csharp-code-assistant",
   "ai-any-language",
+  "ai-rude",
 ];
 
 function downloadAudio(url, filename, msg, text) {
@@ -209,10 +223,18 @@ client.on(Events.MessageCreate, async (msg) => {
       msg.content.startsWith("!gpt") ||
       msg.content.startsWith("!гпт")
     ) {
-      await handleGpt(msg);
+      if (aiCodeAssistChannels.includes(msg.channel.name)) {
+        await coderChatbotHandler(msg);
+      } else {
+        await handleGpt(msg);
+      }
     } else if (isBotMentioned(msg)) {
       if (msg.author.id === "1085479521240743946") return;
-      await handleMessageWithEmiliaMention(msg);
+      if (aiCodeAssistChannels.includes(msg.channel.name)) {
+        await coderChatbotHandler(msg);
+      } else {
+        await handleMessageWithEmiliaMention(msg);
+      }
     } else if (msg.content.startsWith("!prompt")) {
       msg.reply(`Current prompt: "${currentTestPrompt}"`);
     } else if (msg.content.startsWith("!setprompt")) {
@@ -221,6 +243,37 @@ client.on(Events.MessageCreate, async (msg) => {
       await msg.reply(`New prompt: "${currentTestPrompt}"`);
     } else if (fixGrammarUsers.includes(msg.author.id)) {
       await handleGrammarFix2(msg);
+    } else if (
+      msg.content.startsWith("!chunk") ||
+      msg.content.startsWith("!index")
+    ) {
+      if (!authorsToAllowDocIndex.includes(msg.author.id)) {
+        msg.reply("You are not allowed to index documents");
+        return;
+      }
+      const commandArray = msg.content.split(" ");
+      const url = commandArray[1];
+
+      if (!url || !url.startsWith("http")) {
+        msg.reply(
+          "Wrong url. Example of command `!chunk https://ziglang.org/documentation/0.10.1/ main#contents`"
+        );
+        return;
+      }
+
+      commandArray.splice(0, 2); // Remove the command and the url from the array
+      const selectors = commandArray; // What remains are the selectors
+
+      if (msg.content.startsWith("!index")) {
+        await indexDocument(msg, url, selectors);
+      } else {
+        await chunkDocument(msg, url, selectors);
+      }
+    } else if (msg.content.startsWith("!search")) {
+      const commandArray = msg.content.split(" ");
+      commandArray.splice(0, 1);
+      const query = commandArray.join(" ");
+      await searchDocument(msg, query);
     }
   } catch (e) {
     console.error(e);
@@ -391,8 +444,8 @@ async function handleGpt(msg) {
     ],
     options
   );
-  return generateVoiceResponse(msg, response);
-  // sendSplitResponse(msg, response);
+  // return generateVoiceResponse(msg, response);
+  sendSplitResponse(msg, response);
 }
 
 /**
@@ -402,6 +455,7 @@ async function handleGpt(msg) {
  * @returns
  */
 async function generateVoiceResponse(msg, response) {
+  return sendSplitResponse(msg, response);
   if (aiCodeAssistChannels.includes(msg.channel.name))
     return sendSplitResponse(msg, response);
   // sendSplitResponse(msg, response);
@@ -428,11 +482,11 @@ async function generateVoiceResponse(msg, response) {
     codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
     await fsP.writeFile(codeFile, code);
     setTimeout(() => {
-      fs.unlinkSync(codeFile);
+      unlinkSync(codeFile);
     }, 60000);
   }
 
-  const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
+  const regex = /^\[([^\n]*)\]/;
   const regex2 = /\|\|(.*)\|\|/g;
   const regex3 = /```([\s\S]*?)```/g;
   let cleanedMessage = text
@@ -463,7 +517,7 @@ async function generateVoiceResponse(msg, response) {
     setTimeout(() => {
       // delete file
       fs.unlinkSync(file);
-      if (codeFile) fs.unlinkSync(codeFile);
+      if (codeFile) unlinkSync(codeFile);
     }, 15000);
   } else {
     console.error("Error synthesizing speech:", synthesisData.message);
@@ -495,17 +549,14 @@ function limitTokens(text, maxTokens) {
   return decode(limitedTokens);
 }
 
-/**
- * @param {Message} msg
- */
-async function fetchMessageHistory(msg) {
+export async function fetchMessageHistory(msg) {
   let refMsg = msg.reference?.messageId;
   const gptConversation = [];
 
   let content = msg.content.replace("!gpt", "").replace("!гпт", "");
   let tokens =
     calculateTokens(content) + calculateTokens(buildSystemMessage(msg));
-  const MAX_TOKENS = 4500;
+  const MAX_TOKENS = 14000;
   if (tokens > MAX_TOKENS) {
     await msg.reply(
       `ERROR: Message is too long (${tokens} tokens), please shorten it`
@@ -516,7 +567,7 @@ async function fetchMessageHistory(msg) {
   for (let i = 0; i < 20; i++) {
     if (refMsg) {
       const refMsgObj = await loadReferenceMessage(msg, refMsg);
-      const regex = /^\[gpt-[^]*?cost:\s+\d+\.\d+\$\]/;
+      const regex = /^\[([^\n]*)\]/;
       let cleanedMessage = refMsgObj.content.replace(regex, "").trim();
       let msgTokens = calculateTokens(cleanedMessage);
       if (msgTokens + tokens > MAX_TOKENS) {
@@ -555,12 +606,6 @@ async function fetchMessageHistory(msg) {
   return gptConversation;
 }
 
-async function loadReferenceMessage(msg, messageId) {
-  const refMsgObj = await msg?.channel?.messages.fetch(messageId);
-  // console.log("refMsgObj", refMsgObj);
-  return refMsgObj;
-}
-
 /**
  * @param {Message} msg
  * @param {String} response
@@ -584,7 +629,7 @@ async function sendSplitResponse(msg, text) {
     codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
     await fsP.writeFile(codeFile, code);
     setTimeout(() => {
-      fs.unlinkSync(codeFile);
+      unlinkSync(codeFile);
     }, 60000);
   }
   let files = [];
@@ -609,8 +654,9 @@ function getGPTModelName(msg) {
     (msg?.content?.includes("gpt-4") || msg?.content?.includes("gpt4")) &&
     authorsToAllowGPT4.includes(msg.author.id)
   ) {
-    return "gpt-4";
+    return "gpt-4o";
   }
+  return "gpt-4o";
   return "gpt-3.5-turbo-16k";
 }
 
@@ -727,20 +773,32 @@ async function gpt(
     switch (model) {
       case "gpt-3.5-turbo":
         price = (
-          (meta.usage.prompt_tokens / 1000) * 0.0015 +
-          (meta.usage.completion_tokens / 1000) * 0.002
+          (meta.usage.prompt_tokens / 1000000) * 1.5 +
+          (meta.usage.completion_tokens / 1000000) * 2.0
         ).toFixed(4);
         break;
       case "gpt-3.5-turbo-16k":
         price = (
-          (meta.usage.prompt_tokens / 1000) * 0.003 +
-          (meta.usage.completion_tokens / 1000) * 0.004
+          (meta.usage.prompt_tokens / 1000000) * 1.5 +
+          (meta.usage.completion_tokens / 1000000) * 2.0
         ).toFixed(4);
         break;
       case "gpt-4":
         price = (
-          (meta.usage.prompt_tokens / 1000) * 0.03 +
-          (meta.usage.completion_tokens / 1000) * 0.06
+          (meta.usage.prompt_tokens / 1000000) * 30.0 +
+          (meta.usage.completion_tokens / 1000000) * 60.0
+        ).toFixed(4);
+        break;
+      case "gpt-4-turbo":
+        price = (
+          (meta.usage.prompt_tokens / 1000000) * 10.0 +
+          (meta.usage.completion_tokens / 1000000) * 30.0
+        ).toFixed(4);
+        break;
+      case "gpt-4o":
+        price = (
+          (meta.usage.prompt_tokens / 1000000) * 5.0 +
+          (meta.usage.completion_tokens / 1000000) * 15.0
         ).toFixed(4);
         break;
       default:
@@ -875,7 +933,7 @@ The User information:
 
 General information:
 * The discord server is mainly about reverse engineering, gaming, programming, and artificial intelligence.
-* Current Discrord channel is: #${msg.channel.name}
+* Current Discord channel is: #${msg.channel.name}
 * Youtube channel: https://www.youtube.com/h0x91b
 * Github: https://github.com/h0x91b
 * Telegram: https://t.me/ai_plus_plus
