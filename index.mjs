@@ -1,5 +1,10 @@
+import Replicate from "replicate";
 import { config } from "dotenv";
 config();
+
+const replicate = new Replicate({
+  auth: process.env.REPLICATE_API_TOKEN,
+});
 
 import {
   promises as fsP,
@@ -228,6 +233,11 @@ client.on(Events.MessageCreate, async (msg) => {
       } else {
         await handleGpt(msg);
       }
+    } else if (
+      msg.content.startsWith("!img") ||
+      msg.content.startsWith("!image")
+    ) {
+      await handleImageGeneration(msg);
     } else if (isBotMentioned(msg)) {
       if (msg.author.id === "1085479521240743946") return;
       if (aiCodeAssistChannels.includes(msg.channel.name)) {
@@ -938,4 +948,54 @@ General information:
 * Github: https://github.com/h0x91b
 * Telegram: https://t.me/ai_plus_plus
 `;
+}
+
+let fluxSchnell = null;
+
+async function handleImageGeneration(msg) {
+  try {
+    await msg.react("👀");
+
+    const prompt = msg.content.replace(/^!img(age)?/, "").trim();
+    if (!prompt) {
+      await msg.reply("Please provide a prompt for the image generation.");
+      return;
+    }
+
+    if (!fluxSchnell) {
+      fluxSchnell = await replicate.models.get(
+        "black-forest-labs",
+        "flux-schnell"
+      );
+      console.log({ fluxSchnell });
+    }
+
+    const input = { prompt, disable_safety_checker: true };
+    const output = await replicate.run(
+      `black-forest-labs/flux-schnell:${fluxSchnell.latest_version.id}`,
+      {
+        input,
+      }
+    );
+
+    if (!output || !output[0]) {
+      throw new Error("Failed to generate image.");
+    }
+
+    await msg.reply({
+      content: `[black-forest-labs/flux-schnell 0.03$] Image generated with prompt: ${prompt}`,
+      files: [output[0]],
+    });
+  } catch (error) {
+    console.error("Error in handleImageGeneration:", error);
+    await msg.reply(
+      `An error occurred while generating the image: ${error.message}`
+    );
+  } finally {
+    try {
+      await msg.reactions.removeAll();
+    } catch (error) {
+      console.error("Error removing reactions:", error);
+    }
+  }
 }
