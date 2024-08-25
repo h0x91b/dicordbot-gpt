@@ -16,12 +16,10 @@
     "axios": "^1.7.2",
     "chalk": "^5.3.0",
     "cheerio": "^1.0.0-rc.12",
-    "chromadb": "^1.8.1",
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
     "gpt-3-encoder": "^1.1.4",
     "js-tiktoken": "^1.0.12",
-    "langchain": "^0.0.118",
     "node-fetch": "^3.3.2",
     "number-to-words-ru": "^2.4.1",
     "openai": "^3.3.0",
@@ -29,6 +27,8 @@
     "sharp": "^0.33.4"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "@types/node": "^22.5.0",
+    "nodemon": "^2.0.22",
+    "typescript": "^5.5.4"
   }
 }

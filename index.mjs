@@ -17,11 +17,6 @@ import { encode, decode } from "gpt-3-encoder";
 import { Client, Events, GatewayIntentBits, MessagePayload } from "discord.js";
 import pkg from "number-to-words-ru";
 const { convert: convertNumberToWordsRu } = pkg;
-import {
-  chunkDocument,
-  indexDocument,
-  searchDocument,
-} from "./lib/indexer.mjs";
 
 import {
   farcryRolePlayRUPrompt,
@@ -253,37 +248,6 @@ client.on(Events.MessageCreate, async (msg) => {
       await msg.reply(`New prompt: "${currentTestPrompt}"`);
     } else if (fixGrammarUsers.includes(msg.author.id)) {
       await handleGrammarFix2(msg);
-    } else if (
-      msg.content.startsWith("!chunk") ||
-      msg.content.startsWith("!index")
-    ) {
-      if (!authorsToAllowDocIndex.includes(msg.author.id)) {
-        msg.reply("You are not allowed to index documents");
-        return;
-      }
-      const commandArray = msg.content.split(" ");
-      const url = commandArray[1];
-
-      if (!url || !url.startsWith("http")) {
-        msg.reply(
-          "Wrong url. Example of command `!chunk https://ziglang.org/documentation/0.10.1/ main#contents`"
-        );
-        return;
-      }
-
-      commandArray.splice(0, 2); // Remove the command and the url from the array
-      const selectors = commandArray; // What remains are the selectors
-
-      if (msg.content.startsWith("!index")) {
-        await indexDocument(msg, url, selectors);
-      } else {
-        await chunkDocument(msg, url, selectors);
-      }
-    } else if (msg.content.startsWith("!search")) {
-      const commandArray = msg.content.split(" ");
-      commandArray.splice(0, 1);
-      const query = commandArray.join(" ");
-      await searchDocument(msg, query);
     }
   } catch (e) {
     console.error(e);
