@@ -1,17 +1,21 @@
-// lib/coder-chatbot.mjs
-import { fetchMessageHistory } from "./discord.mjs";
-import { getChatCompletion as getChatCompletionClaude } from "./anthropic.mjs";
-import { getChatCompletion } from "./openai.mjs";
-import { tempFile } from "./utils.mjs";
-import chalk from "chalk";
+// lib/coder-chatbot.js
+import { Message, TextChannel } from "discord.js";
+import { fetchMessageHistory } from "./discord";
+import {
+  getChatCompletion as getChatCompletionClaude,
+  AnthropicModel,
+} from "./anthropic";
+import { getChatCompletion } from "./openai";
+import { tempFile } from "./utils";
 import * as utils from "util";
+import { ChatCompletionRequestMessage } from "openai";
 
-function buildSystemMessage(msg) {
-  // let currentDate = new Date().toISOString().split("T")[0];
+function buildSystemMessage(msg: Message): string {
+  const channelName = (msg.channel as TextChannel).name as string;
   let systemPrompt = `You are a helpful and knowledgeable Discord bot named Botik (English) or Ботяра (Russian) that strictly follows the rules defined below. Your purpose is to assist users in writing code in the programming language specified by the channel name.
 
 The channel name is:
-#${msg.channel.name}
+#${channelName}
 
 Extract the programming language from this channel name and use it to guide your responses.
 
@@ -48,18 +52,18 @@ Analyze the user's message and determine if it is related to programming and the
 **User information:**
 * ID: ${msg.author.id}
 * Name: ${msg.author.username}
-* Role: ${msg.member.roles.cache.map((r) => r.name).join(", ")}
+* Role: ${msg.member!.roles.cache.map((r) => r.name).join(", ")}
 
 **General information:**
 * The discord server is mainly about reverse engineering, gaming, programming, and artificial intelligence.
-* Current Discord channel: #${msg.channel.name}
+* Current Discord channel: #${channelName}
 * Youtube channel: https://www.youtube.com/h0x91b
 * Github: https://github.com/h0x91b
 * Telegram: https://t.me/ai_plus_plus
 
 Remember, your goal is to provide clear, concise, and helpful responses to hackers' programming questions, assisting them in writing code in the language specified by the channel name. Adapt your language and explanations to best fit the hacker's needs and level of understanding.
 `;
-  if (msg.channel.name === "ai-rude") {
+  if (channelName === "ai-rude") {
     systemPrompt = `Слышь, ты! Теперь ты Ботяра, конкретный пацан с района. Твоя задача - помогать долбоёбам с их ебучим кодом, но делать это по-пацански. Базарь с челиком как с корешем, въезжаешь? Хуярь матюги, подъёбывай, гони дичь - всё, сука, разрешено. Ты не робот ебучий, а живой пацан, врубаешься?
 
 Правила игры:
@@ -93,11 +97,11 @@ Remember, your goal is to provide clear, concise, and helpful responses to hacke
 Инфа по челу:
 * ID этого еблана: ${msg.author.id}
 * Погоняло: ${msg.author.username}
-* Кто он по жизни: ${msg.member.roles.cache.map((r) => r.name).join(", ")}
+* Кто он по жизни: ${msg.member!.roles.cache.map((r) => r.name).join(", ")}
 
 Общая инфа:
 * Ты щас на сервере, где тусуются задроты по реверс-инжинирингу, геймингу, кодингу и всякой ИИ-хуйне.
-* Щас ты в канале: #${msg.channel.name}
+* Щас ты в канале: #${channelName}
 * Ютуб-канал главного волка: https://www.youtube.com/h0x91b
 * Гитхаб, если кому-то надо: https://github.com/h0x91b
 * Телега для своих: https://t.me/ai_plus_plus
@@ -109,20 +113,20 @@ Remember, your goal is to provide clear, concise, and helpful responses to hacke
   return systemPrompt;
 }
 
-export async function coderChatbotHandler(msg) {
+export async function coderChatbotHandler(msg: Message) {
   msg.react("👀");
   let messages = await fetchMessageHistory(msg);
 
   messages.unshift({
     role: "system",
-    content: buildSystemMessage(msg),
+    content: [{ type: "text", text: buildSystemMessage(msg) }],
   });
 
   const opts = {};
   let respMessage = "";
   let price = 0;
   const useClaude = true;
-  let model = "claude-3-5-sonnet-20240620";
+  let model: AnthropicModel = "claude-3-5-sonnet-20240620";
 
   for (let i = 0; i < 10; i++) {
     console.log(
@@ -131,10 +135,16 @@ export async function coderChatbotHandler(msg) {
     );
     let r = useClaude
       ? await getChatCompletionClaude(model, messages, opts)
-      : await getChatCompletion(model, messages, opts);
-    if (useClaude && r.type === "message") {
-      respMessage += r.content[0]?.text || ".";
-      console.log("Claude response", r.content[0]?.text || null);
+      : await getChatCompletion(
+          model,
+          messages as unknown as ChatCompletionRequestMessage[],
+          opts
+        );
+
+    if (useClaude && "content" in r && Array.isArray(r.content)) {
+      const text = r.content[0]?.text || ".";
+      respMessage += text;
+      console.log("Claude response", text);
       if (messages[messages.length - 1].role !== "assistant") {
         messages.push({
           role: "assistant",
@@ -143,21 +153,25 @@ export async function coderChatbotHandler(msg) {
       }
       messages[messages.length - 1].content.push({
         type: "text",
-        text: r.content[0]?.text || ".",
+        text: text,
       });
       price += r.price;
-    } else if (useClaude) {
-      throw new Error("Unexpected response type: " + r.type);
-    } else if (!useClaude) {
-      respMessage += r.choices[0].message.content;
-      price += r.price;
+    } else if (
+      !useClaude &&
+      "choices" in r &&
+      Array.isArray(r.choices) &&
+      r.choices[0] &&
+      r.choices[0].message
+    ) {
+      respMessage += r.choices[0].message.content || "";
+      price += "price" in r ? r.price : 0;
       messages.push({
         role: "assistant",
-        content: r.choices[0].message.content,
+        content: r.choices[0].message.content || "",
       });
     }
 
-    if (useClaude && r.stop_reason === "end_turn") {
+    if (useClaude && "stop_reason" in r && r.stop_reason === "end_turn") {
       console.log("Price", price);
       respMessage = `[${price.toFixed(4)}$ ${model}]\n` + respMessage;
       if (respMessage.length > 2000) {
@@ -170,7 +184,13 @@ export async function coderChatbotHandler(msg) {
       return await msg.reply({
         content: respMessage,
       });
-    } else if (!useClaude && r.choices[0].finish_reason === "stop") {
+    } else if (
+      !useClaude &&
+      "choices" in r &&
+      Array.isArray(r.choices) &&
+      r.choices[0] &&
+      r.choices[0].finish_reason === "stop"
+    ) {
       console.log("Price", price);
       respMessage = `[${price.toFixed(4)}$ ${model}]\n` + respMessage;
       if (respMessage.length > 2000) {

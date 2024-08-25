@@ -1,18 +1,46 @@
-// lib/discord.mjs
+// lib/discord.js
+import { Message, TextChannel, Attachment } from "discord.js";
 import axios from "axios";
 import fs from "fs/promises";
 import path from "path";
 import fetch from "node-fetch";
 
-import { extractCodeFromMessage } from "./utils.mjs";
-import { processImage, encodeImageToBase64 } from "./image-processing.mjs";
+import { extractCodeFromMessage } from "./utils";
+import { processImage, encodeImageToBase64 } from "./image-processing";
 
-export async function fetchMessageHistory(msg) {
+interface ContentBlock {
+  type: string;
+  text?: string;
+  source?: {
+    type: string;
+    media_type?: string;
+    data?: string;
+  };
+}
+
+interface ConversationMessage {
+  role: string;
+  content: ContentBlock[];
+  function_call?: {
+    name: string;
+    arguments: string;
+  };
+}
+
+interface ProcessedMessage {
+  content: ContentBlock[];
+  reference?: { messageId: string | null };
+  author: { bot: boolean };
+}
+
+export async function fetchMessageHistory(
+  msg: Message
+): Promise<ConversationMessage[]> {
   let refMsg = msg.reference?.messageId;
-  const gptConversation = [];
+  const gptConversation: ConversationMessage[] = [];
 
-  async function processMessage(message) {
-    let content = [];
+  async function processMessage(message: Message): Promise<ProcessedMessage> {
+    let content: ContentBlock[] = [];
     if (typeof message.content === "string" && message.content.length > 0) {
       content.push({ type: "text", text: message.content });
     }
@@ -60,13 +88,19 @@ export async function fetchMessageHistory(msg) {
         }
       }
     }
-    return { ...message, content };
+    return {
+      content,
+      reference: message.reference
+        ? { messageId: message.reference.messageId ?? null }
+        : undefined,
+      author: { bot: message.author.bot },
+    };
   }
 
-  let currentRole = null;
-  let accumulatedContent = [];
+  let currentRole: string | null = null;
+  let accumulatedContent: ContentBlock[] = [];
 
-  function addMessageToConversation(role, content) {
+  function addMessageToConversation(role: string, content: ContentBlock[]) {
     if (content.length > 0) {
       if (gptConversation.length > 0 && gptConversation[0].role === role) {
         // If the last message has the same role, combine the contents
@@ -84,51 +118,63 @@ export async function fetchMessageHistory(msg) {
     if (!refMsg) break;
     console.log("fetching message", refMsg);
     let refMsgObj = await loadReferenceMessage(msg, refMsg);
-    refMsgObj = await processMessage(refMsgObj);
-    refMsg = refMsgObj?.reference?.messageId;
+    if (!refMsgObj) break;
+    const processedMsg = await processMessage(refMsgObj);
+    refMsg = processedMsg.reference?.messageId ?? undefined;
 
     const regex = /^\[([^\n]*)\]/;
-    let cleanedContent = refMsgObj.content.map((item) => {
-      if (item.type === "text") {
+    let cleanedContent = processedMsg.content.map((item: ContentBlock) => {
+      if (item.type === "text" && item.text) {
         return { ...item, text: item.text.replace(regex, "").trim() };
       }
       return item;
     });
 
-    if (refMsgObj.author.bot) {
-      if (cleanedContent[0]?.text?.startsWith("[function_call]")) {
-        addMessageToConversation(currentRole, accumulatedContent);
+    if (processedMsg.author.bot) {
+      if (
+        cleanedContent[0]?.type === "text" &&
+        cleanedContent[0].text?.startsWith("[function_call]")
+      ) {
+        addMessageToConversation(currentRole || "user", accumulatedContent);
         currentRole = null;
         accumulatedContent = [];
-        let [fn] = await extractCodeFromMessage(cleanedContent[0].text);
-        fn = JSON.parse(fn);
-        gptConversation.unshift({
-          role: "assistant",
-          content: null,
-          function_call: {
-            name: fn.name,
-            arguments: JSON.stringify(fn.function_call.arguments),
-          },
-        });
+        const extractedCode = await extractCodeFromMessage(
+          cleanedContent[0].text
+        );
+        if (extractedCode && extractedCode.length > 0) {
+          const fn = JSON.parse(extractedCode[0]);
+          gptConversation.unshift({
+            role: "assistant",
+            content: [],
+            function_call: {
+              name: fn.name,
+              arguments: JSON.stringify(fn.function_call.arguments),
+            },
+          });
+        }
       } else if (
-        cleanedContent[0]?.text?.startsWith("[function_call_response]")
+        cleanedContent[0]?.type === "text" &&
+        cleanedContent[0].text?.startsWith("[function_call_response]")
       ) {
-        addMessageToConversation(currentRole, accumulatedContent);
+        addMessageToConversation(currentRole || "user", accumulatedContent);
         currentRole = null;
         accumulatedContent = [];
         const fn = cleanedContent[0].text.split(" ")[1];
         const [file] = await downloadAttachmentsFromMessage(refMsgObj);
         gptConversation.unshift({
           role: "function",
-          name: fn,
-          content: file,
+          content: [{ type: "text", text: file }],
         });
       } else {
-        if (refMsgObj.content.filter((item) => item.type === "image")) {
+        if (
+          processedMsg.content.some(
+            (item: ContentBlock) => item.type === "image"
+          )
+        ) {
           currentRole = "user";
           accumulatedContent = [...cleanedContent, ...accumulatedContent];
         } else if (currentRole !== "assistant") {
-          addMessageToConversation(currentRole, accumulatedContent);
+          addMessageToConversation(currentRole || "user", accumulatedContent);
           currentRole = "assistant";
           accumulatedContent = cleanedContent;
         } else {
@@ -137,7 +183,10 @@ export async function fetchMessageHistory(msg) {
       }
     } else {
       if (currentRole !== "user") {
-        addMessageToConversation(currentRole, accumulatedContent);
+        addMessageToConversation(
+          currentRole || "assistant",
+          accumulatedContent
+        );
         currentRole = "user";
         accumulatedContent = cleanedContent;
       } else {
@@ -147,7 +196,7 @@ export async function fetchMessageHistory(msg) {
   }
 
   // Add any remaining accumulated content
-  addMessageToConversation(currentRole, accumulatedContent);
+  addMessageToConversation(currentRole || "user", accumulatedContent);
 
   const processedMsg = await processMessage(msg);
 
@@ -164,12 +213,26 @@ export async function fetchMessageHistory(msg) {
   return gptConversation;
 }
 
-export async function loadReferenceMessage(msg, messageId) {
-  const refMsgObj = await msg?.channel?.messages.fetch(messageId);
-  return refMsgObj;
+export async function loadReferenceMessage(
+  msg: Message,
+  messageId: string
+): Promise<Message | null> {
+  if (msg.channel instanceof TextChannel) {
+    try {
+      const refMsgObj = await msg.channel.messages.fetch(messageId);
+      return refMsgObj;
+    } catch (error) {
+      console.error(`Error fetching message ${messageId}:`, error);
+      return null;
+    }
+  }
+  return null;
 }
 
-async function downloadAttachment(url, filename) {
+async function downloadAttachment(
+  url: string,
+  filename: string
+): Promise<string> {
   const response = await axios.get(url, { responseType: "arraybuffer" });
   const filePath = path.join("/tmp", filename);
   await fs.writeFile(filePath, response.data);
@@ -189,10 +252,12 @@ async function downloadAttachment(url, filename) {
   return fileContent.toString("utf8");
 }
 
-export async function downloadAttachmentsFromMessage(message) {
-  let attachmentsArray = [];
+export async function downloadAttachmentsFromMessage(
+  message: Message
+): Promise<string[]> {
+  let attachmentsArray: string[] = [];
   for (let attachment of message.attachments.values()) {
-    let filename = attachment.name;
+    let filename = attachment.name ?? "unnamed_attachment";
     let url = attachment.url;
     const fileContent = await downloadAttachment(url, filename);
     attachmentsArray.push(fileContent);
@@ -200,7 +265,7 @@ export async function downloadAttachmentsFromMessage(message) {
   return attachmentsArray;
 }
 
-async function fetchAttachmentContent(attachment) {
+async function fetchAttachmentContent(attachment: Attachment): Promise<string> {
   const response = await fetch(attachment.url);
   if (!response.ok)
     throw new Error(`Не удалось скачать аттачмент: ${response.statusText}`);

@@ -1,4 +1,6 @@
-export function farcryRolePlayRUPrompt(msg) {
+import { Message } from "discord.js";
+
+export function farcryRolePlayRUPrompt(msg: Message) {
   return `Задание для ChatGPT: Ролевая игра (строгое соблюдение роли).
 
 В этой игре ChatGPT должен исполнять 3 роли.
@@ -57,7 +59,7 @@ The game is started!
 `;
 }
 
-export function farcryRolePlayENPrompt(msg) {
+export function farcryRolePlayENPrompt(msg: Message) {
   return `Assignment for ChatGPT: Role-playing (strict role-playing).
 
 In this game ChatGPT have to play 3 roles.

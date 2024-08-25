@@ -1,31 +1,30 @@
+import dotenv from "dotenv";
 import Replicate from "replicate";
-import { config } from "dotenv";
-config();
+import { promises as fsP, unlinkSync } from "fs";
+import fs from "fs";
+import axios from "axios";
+import { encode, decode } from "gpt-3-encoder";
+import {
+  Client,
+  Events,
+  GatewayIntentBits,
+  TextChannel,
+  Role,
+  Message,
+} from "discord.js";
+import { convert as convertNumberToWordsRu } from "number-to-words-ru";
+
+import { farcryRolePlayRUPrompt, farcryRolePlayENPrompt } from "./lib/farcry3";
+import { coderChatbotHandler } from "./lib/coder-chatbot";
+import { loadReferenceMessage } from "./lib/discord";
+
+dotenv.config();
 
 const replicate = new Replicate({
   auth: process.env.REPLICATE_API_TOKEN,
 });
 
-import {
-  promises as fsP,
-  readFile as readF,
-  writeFile as writeF,
-  unlinkSync,
-} from "fs";
-import axios from "axios";
-import { encode, decode } from "gpt-3-encoder";
-import { Client, Events, GatewayIntentBits, MessagePayload } from "discord.js";
-import pkg from "number-to-words-ru";
-const { convert: convertNumberToWordsRu } = pkg;
-
-import {
-  farcryRolePlayRUPrompt,
-  farcryRolePlayENPrompt,
-} from "./lib/farcry3.mjs";
-import { coderChatbotHandler } from "./lib/coder-chatbot.mjs";
-import { loadReferenceMessage } from "./lib/discord.mjs";
-
-let availableDiscordChannels = [];
+let availableDiscordChannels: string[] = [];
 let rpgRole = "Trevor GTA 5";
 
 const client = new Client({
@@ -45,7 +44,7 @@ const authorsToAllowGPT4 = [
 const authorsToAllowDocIndex = [
   "405507382207315978", //h0x91b
 ];
-const fixGrammarUsers = [
+const fixGrammarUsers: string[] = [
   // "309119244979798016", // Wlastas
   // "405507382207315978", // h0x91b
 ];
@@ -60,7 +59,12 @@ const aiCodeAssistChannels = [
   "ai-rude",
 ];
 
-function downloadAudio(url, filename, msg, text) {
+function downloadAudio(
+  url: string,
+  filename: string,
+  msg: Message,
+  text: string
+): Promise<string> {
   return new Promise((resolve, reject) => {
     axios
       .get(url, { responseType: "stream" })
@@ -79,11 +83,16 @@ function downloadAudio(url, filename, msg, text) {
       })
       .catch((error) => {
         console.error("Error downloading audio file:", error.message);
+        reject(error);
       });
   });
 }
 
-function synthesizeSpeech(voiceId, text, format = "mp3") {
+function synthesizeSpeech(
+  voiceId: string,
+  text: string,
+  format = "mp3"
+): Promise<any> {
   const url = "https://api.voice.steos.io/v1/get/tts";
   const headers = {
     Accept: "application/json",
@@ -91,7 +100,7 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
     Authorization: process.env.VOICE_STEOS_API_KEY,
   };
 
-  let fixes = [
+  let fixes: [string, string][] = [
     ["\\+", "плюс"],
     ["помочь", "пом+очь"],
     ["готов", "гот+ов"],
@@ -112,18 +121,12 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
   if (digits) {
     digits.forEach((digit) => {
       const digitWords = convertNumberToWordsRu(digit, {
-        // currency: "number",
-        // showNumberParts: {
-        //   integer: true,
-        //   fractional: false,
-        // },
         showNumberParts: {
           fractional: false,
         },
         showCurrency: {
           integer: false,
         },
-        // roundNumber: 0,
       });
       fixedText = fixedText.replace(digit, digitWords);
     });
@@ -140,11 +143,13 @@ function synthesizeSpeech(voiceId, text, format = "mp3") {
 }
 
 client.on("ready", async () => {
-  console.log(`Logged in as ${client.user.tag}!`);
+  if (client.user) {
+    console.log(`Logged in as ${client.user.tag}!`);
+  }
 
   console.log("guilds", client.guilds);
   // get all available channels
-  client.guilds.cache.map((guild) => {
+  client.guilds.cache.forEach((guild) => {
     console.log(`Guild: ${guild.name}`);
     guild.channels.cache.forEach((channel) => {
       if (channel.type === 0) {
@@ -182,14 +187,18 @@ client.on("ready", async () => {
   ];
 });
 
-async function getUserLastMessage(msg, count = 10, maxTime = 1000 * 60 * 5) {
+async function getUserLastMessage(
+  msg: Message,
+  count = 10,
+  maxTime = 1000 * 60 * 5
+): Promise<{ createdTimestamp: number; content: string }[]> {
   const userId = msg.author.id;
   const channelId = msg.channel.id;
 
   const channel = await client.channels.fetch(channelId);
-  if (channel.type !== 0) {
+  if (!(channel instanceof TextChannel)) {
     console.log("This is not a text channel");
-    return;
+    return [];
   }
 
   const messages = await channel.messages.fetch({ limit: 50 });
@@ -206,14 +215,14 @@ async function getUserLastMessage(msg, count = 10, maxTime = 1000 * 60 * 5) {
   return userMessages;
 }
 
-client.on(Events.MessageCreate, async (msg) => {
+client.on(Events.MessageCreate, async (msg: Message) => {
   console.log("on messageCreate", msg.content, {
     author: msg.author.username,
     authorId: msg.author.id,
-    channel: msg.channel.name,
+    channel: (msg.channel as TextChannel).name,
     time: new Date().toISOString(),
     attachments: msg.attachments,
-    parentName: msg.channel.parent?.name,
+    parentName: (msg.channel as TextChannel).parent?.name,
   });
   try {
     if (msg.author.bot) return;
@@ -223,7 +232,7 @@ client.on(Events.MessageCreate, async (msg) => {
       msg.content.startsWith("!gpt") ||
       msg.content.startsWith("!гпт")
     ) {
-      if (aiCodeAssistChannels.includes(msg.channel.name)) {
+      if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name)) {
         await coderChatbotHandler(msg);
       } else {
         await handleGpt(msg);
@@ -235,7 +244,7 @@ client.on(Events.MessageCreate, async (msg) => {
       await handleImageGeneration(msg);
     } else if (isBotMentioned(msg)) {
       if (msg.author.id === "1085479521240743946") return;
-      if (aiCodeAssistChannels.includes(msg.channel.name)) {
+      if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name)) {
         await coderChatbotHandler(msg);
       } else {
         await handleMessageWithEmiliaMention(msg);
@@ -249,16 +258,16 @@ client.on(Events.MessageCreate, async (msg) => {
     } else if (fixGrammarUsers.includes(msg.author.id)) {
       await handleGrammarFix2(msg);
     }
-  } catch (e) {
+  } catch (e: unknown) {
     console.error(e);
-    msg.reply("Error: " + e.message);
+    msg.reply("Error: " + (e as Error).message);
   }
 });
 
-let grammarTimers = {};
-let lastUserMessageId = {};
+let grammarTimers: { [key: string]: NodeJS.Timeout } = {};
+let lastUserMessageId: { [key: string]: number } = {};
 
-async function handleGrammarFix(msg) {
+async function handleGrammarFix(msg: Message) {
   console.log("handleGrammarFix", msg.author.username, msg.content);
   if (grammarTimers[msg.author.id]) {
     clearTimeout(grammarTimers[msg.author.id]);
@@ -272,7 +281,7 @@ The "errorCount" field is a count of found errors.
 The "errors" field is an array of strings in format "before -> after" where "before" is found misspelled word and "after" the fixed version.
 The "fixed" field is a full fixed user input.
 
-If the user input can’t be parsed, return it in JSON without changes.
+If the user input can't be parsed, return it in JSON without changes.
 New lines MUST be replaced by "\\n" in the "fixed" field to be a valid JSON.
 
 Here are several cases for your reference:
@@ -327,7 +336,7 @@ ${obj.fixed}
   }, 15000);
 }
 
-async function handleGrammarFix2(msg) {
+async function handleGrammarFix2(msg: Message) {
   console.log("handleGrammarFix2", msg.author.username, msg.content);
   if (grammarTimers[msg.author.id]) {
     clearTimeout(grammarTimers[msg.author.id]);
@@ -355,6 +364,7 @@ Example 4:
 User: "блин 8 вечера я не щарелищзился). я кароче жту забисьотклчаю на сутки. соори))"
 блин 8 вечера я не **зарелизился**). я **короче** **эту** **запись** **отключаю** на сутки. **сорри**))
 ---`;
+
     const lastId = lastUserMessageId[msg.author.id] || 0;
     const lastMessages = (
       await getUserLastMessage(msg, 10, 1000 * 60 * 5)
@@ -391,7 +401,7 @@ ${response.replace(/\\n/g, "\n")}
 
 client.login(process.env.DISCORD_BOT_TOKEN);
 
-function isBotMentioned(msg) {
+function isBotMentioned(msg: Message): boolean {
   const includesArray = ["ботик", "ботяра", "ботан", "botik", "botan"];
   return (
     msg?.mentions?.repliedUser?.id === "1085479521240743946" ||
@@ -399,14 +409,14 @@ function isBotMentioned(msg) {
   );
 }
 
-async function handleHello(msg) {
+async function handleHello(msg: Message) {
   msg.reply("Hello, I am your bot!");
 }
 
-async function handleGpt(msg) {
+async function handleGpt(msg: Message) {
   msg.react("👀");
-  const options = {};
-  if (aiCodeAssistChannels.includes(msg.channel.name))
+  const options: GptOptions = {};
+  if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
     options.putSystemMessageFirst = true;
   const response = await gpt(
     msg,
@@ -422,15 +432,9 @@ async function handleGpt(msg) {
   sendSplitResponse(msg, response);
 }
 
-/**
- *
- * @param {Message} msg
- * @param {String} response
- * @returns
- */
-async function generateVoiceResponse(msg, response) {
+async function generateVoiceResponse(msg: Message, response: string) {
   return sendSplitResponse(msg, response);
-  if (aiCodeAssistChannels.includes(msg.channel.name))
+  if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
     return sendSplitResponse(msg, response);
   // sendSplitResponse(msg, response);
   // const voiceId = 18;
@@ -441,22 +445,22 @@ async function generateVoiceResponse(msg, response) {
   const text = response;
   const format = "mp3";
 
-  let codeFile;
+  let codeFile: string | undefined;
   const regexCode = /```(?:([a-zA-Z0-9\+]+)\n)?([\s\S]*?)```/g;
 
   let match = regexCode.exec(text);
 
   if (match) {
-    const language = match[1] || "txt";
-    const code = match[2];
+    const language = match?.[1] || "txt";
+    const code = match?.[2] || "";
 
     console.log("Language:", language);
     console.log("Code:", code);
 
     codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
-    await fsP.writeFile(codeFile, code);
+    await fsP.writeFile(codeFile!, code);
     setTimeout(() => {
-      unlinkSync(codeFile);
+      unlinkSync(codeFile!);
     }, 60000);
   }
 
@@ -470,7 +474,7 @@ async function generateVoiceResponse(msg, response) {
     .trim();
 
   const { data: synthesisData } = await synthesizeSpeech(
-    voiceId,
+    voiceId.toString(),
     cleanedMessage,
     format
   );
@@ -482,7 +486,7 @@ async function generateVoiceResponse(msg, response) {
     await downloadAudio(synthesisData.audio_url, file, msg, response);
     // Send the MP3 file after the download has finished
     let files = [file];
-    if (codeFile) files.push(codeFile);
+    if (codeFile) files.push(codeFile!);
     await msg.reply({
       content: response.replace(regex3, ""),
       files,
@@ -490,7 +494,7 @@ async function generateVoiceResponse(msg, response) {
 
     setTimeout(() => {
       // delete file
-      fs.unlinkSync(file);
+      unlinkSync(file);
       if (codeFile) unlinkSync(codeFile);
     }, 15000);
   } else {
@@ -501,29 +505,29 @@ async function generateVoiceResponse(msg, response) {
   }
 }
 
-async function handleMessageWithEmiliaMention(msg) {
+async function handleMessageWithEmiliaMention(msg: Message) {
   msg.react("👀");
   const gptConversation = await fetchMessageHistory(msg);
-  const options = {};
-  if (aiCodeAssistChannels.includes(msg.channel.name))
+  const options: GptOptions = {};
+  if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
     options.putSystemMessageFirst = true;
   const response = await gpt(msg, gptConversation, options);
   return sendSplitResponse(msg, response);
   // return generateVoiceResponse(msg, response);
 }
 
-function calculateTokens(text) {
+function calculateTokens(text: string): number {
   const tokens = encode(text);
   return tokens.length;
 }
 
-function limitTokens(text, maxTokens) {
+function limitTokens(text: string, maxTokens: number): string {
   const tokens = encode(text);
   const limitedTokens = tokens.slice(tokens.length - maxTokens, tokens.length);
   return decode(limitedTokens);
 }
 
-export async function fetchMessageHistory(msg) {
+export async function fetchMessageHistory(msg: Message) {
   let refMsg = msg.reference?.messageId;
   const gptConversation = [];
 
@@ -541,21 +545,23 @@ export async function fetchMessageHistory(msg) {
   for (let i = 0; i < 20; i++) {
     if (refMsg) {
       const refMsgObj = await loadReferenceMessage(msg, refMsg);
-      const regex = /^\[([^\n]*)\]/;
-      let cleanedMessage = refMsgObj.content.replace(regex, "").trim();
-      let msgTokens = calculateTokens(cleanedMessage);
-      if (msgTokens + tokens > MAX_TOKENS) {
-        cleanedMessage = limitTokens(cleanedMessage, MAX_TOKENS - tokens);
-        tokens = MAX_TOKENS;
-      } else {
-        tokens += msgTokens;
+      if (refMsgObj) {
+        const regex = /^\[([^\n]*)\]/;
+        let cleanedMessage = refMsgObj.content.replace(regex, "").trim();
+        let msgTokens = calculateTokens(cleanedMessage);
+        if (msgTokens + tokens > MAX_TOKENS) {
+          cleanedMessage = limitTokens(cleanedMessage, MAX_TOKENS - tokens);
+          tokens = MAX_TOKENS;
+        } else {
+          tokens += msgTokens;
+        }
+        gptConversation.unshift({
+          role: refMsgObj.author.bot ? "assistant" : "user",
+          content: cleanedMessage,
+        });
+        refMsg = refMsgObj.reference?.messageId;
+        if (tokens >= MAX_TOKENS) break;
       }
-      gptConversation.unshift({
-        role: refMsgObj.author.bot ? "assistant" : "user",
-        content: cleanedMessage,
-      });
-      refMsg = refMsgObj.reference?.messageId;
-      if (tokens >= MAX_TOKENS) break;
     }
   }
 
@@ -580,14 +586,8 @@ export async function fetchMessageHistory(msg) {
   return gptConversation;
 }
 
-/**
- * @param {Message} msg
- * @param {String} response
- * @returns
- * @description Sends a message to the channel, splitting it if it's too long
- */
-async function sendSplitResponse(msg, text) {
-  let codeFile;
+async function sendSplitResponse(msg: Message, text: string) {
+  let codeFile: string | undefined;
   const regexCode = /```(?:([a-zA-Z0-9\+]+)\n)?([\s\S]*?)```/g;
 
   let match = regexCode.exec(text);
@@ -603,10 +603,10 @@ async function sendSplitResponse(msg, text) {
     codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
     await fsP.writeFile(codeFile, code);
     setTimeout(() => {
-      unlinkSync(codeFile);
+      unlinkSync(codeFile!);
     }, 60000);
   }
-  let files = [];
+  let files: string[] = [];
   if (codeFile) files.push(codeFile);
   if (response?.length > 1800) {
     const parts = response.match(/[\s\S]{1,1800}/g) || [];
@@ -618,11 +618,7 @@ async function sendSplitResponse(msg, text) {
   msg.reply({ content: response, files });
 }
 
-/**
- * @param {Message} msg
- * @returns {String}
- */
-function getGPTModelName(msg) {
+function getGPTModelName(msg: Message): string {
   if (!msg || !msg.author.username) return "gpt-3.5-turbo-16k";
   if (
     (msg?.content?.includes("gpt-4") || msg?.content?.includes("gpt4")) &&
@@ -631,18 +627,21 @@ function getGPTModelName(msg) {
     return "gpt-4o";
   }
   return "gpt-4o";
-  return "gpt-3.5-turbo-16k";
+  // return "gpt-3.5-turbo-16k";
+}
+
+interface GptOptions {
+  overrideSystemMessage?: string | null;
+  skipCost?: boolean;
+  skipReactions?: boolean;
+  putSystemMessageFirst?: boolean;
+  skipCounter?: boolean;
 }
 
 async function gpt(
-  msg,
-  conversation,
-  options = {
-    overrideSystemMessage: null,
-    skipCost: false,
-    skipReactions: false,
-    putSystemMessageFirst: false,
-  }
+  msg: Message,
+  conversation: any[],
+  options: GptOptions = {}
 ) {
   const now = Date.now();
   const systemMessage =
@@ -672,7 +671,7 @@ async function gpt(
     max_tokens: 600,
   };
 
-  let timeout;
+  let timeout: NodeJS.Timeout | null = null;
   const maxResponseTime = 120000;
   try {
     const reactions = [
@@ -708,7 +707,7 @@ async function gpt(
         const previousReaction = msg.reactions.resolve(
           reactions[currentIndex - 1]
         );
-        if (previousReaction) {
+        if (previousReaction && client.user) {
           previousReaction.users.remove(client.user.id);
         }
       }
@@ -733,60 +732,51 @@ async function gpt(
         timeout: maxResponseTime,
       }
     );
-    clearTimeout(timeout);
+    if (timeout) clearTimeout(timeout);
     const { choices, ...meta } = response.data;
     console.log("gpt response", choices, meta);
     const responseTime = ((Date.now() - now) / 1000).toFixed(2);
     console.log("responseTime", responseTime);
     if (options.skipCost) return choices[0].message.content;
-    let price;
+    let price: number;
     // Model	Input	Output
     // 4K context	$0.0015 / 1K tokens	$0.002 / 1K tokens
     // 16K context	$0.003 / 1K tokens	$0.004 / 1K tokens
 
     switch (model) {
       case "gpt-3.5-turbo":
-        price = (
-          (meta.usage.prompt_tokens / 1000000) * 1.5 +
-          (meta.usage.completion_tokens / 1000000) * 2.0
-        ).toFixed(4);
-        break;
       case "gpt-3.5-turbo-16k":
-        price = (
+        price =
           (meta.usage.prompt_tokens / 1000000) * 1.5 +
-          (meta.usage.completion_tokens / 1000000) * 2.0
-        ).toFixed(4);
+          (meta.usage.completion_tokens / 1000000) * 2.0;
         break;
       case "gpt-4":
-        price = (
+        price =
           (meta.usage.prompt_tokens / 1000000) * 30.0 +
-          (meta.usage.completion_tokens / 1000000) * 60.0
-        ).toFixed(4);
+          (meta.usage.completion_tokens / 1000000) * 60.0;
         break;
       case "gpt-4-turbo":
-        price = (
+        price =
           (meta.usage.prompt_tokens / 1000000) * 10.0 +
-          (meta.usage.completion_tokens / 1000000) * 30.0
-        ).toFixed(4);
+          (meta.usage.completion_tokens / 1000000) * 30.0;
         break;
       case "gpt-4o":
-        price = (
+        price =
           (meta.usage.prompt_tokens / 1000000) * 5.0 +
-          (meta.usage.completion_tokens / 1000000) * 15.0
-        ).toFixed(4);
+          (meta.usage.completion_tokens / 1000000) * 15.0;
         break;
       default:
-        price = "N/A";
+        price = 999.99;
         break;
     }
 
     return (
-      `[${model} cost: ${price}\$ tokens: ${
+      `[${model} cost: ${price.toFixed(4)}$ tokens: ${
         meta.usage.prompt_tokens + meta.usage.completion_tokens
       }]
 ` + choices[0].message.content
     );
-  } catch (error) {
+  } catch (error: any) {
     console.error(
       "Error calling ChatGPT API:",
       error?.response?.status,
@@ -794,7 +784,7 @@ async function gpt(
       error?.response?.data?.error,
       error?.response?.headers
     );
-    clearTimeout(timeout);
+    clearTimeout(timeout!);
     return `Error calling ChatGPT API: ${error?.response?.status} ${
       error?.response?.statusText
     } \`\`\`${JSON.stringify(error?.response?.data?.error, null, 2)}\`\`\``;
@@ -803,17 +793,13 @@ async function gpt(
 
 let currentTestPrompt = `Исполняй роль шамана оракула, к тебе приходят люди с вопросами, а ты должен научить их мистическому многошаговому ритуалу и обряду, отвечай на вопросы с максимальным мистицизмом и юмором`;
 
-/**
- * @param {Message} msg
- * @returns {String}
- */
-function buildSystemMessage(msg) {
+function buildSystemMessage(msg: Message): string {
   let is_farcry3 =
-    msg.channel.name === "ai-farcry3" ||
-    msg.channel?.parent?.name === "ai-farcry3";
+    (msg.channel as TextChannel).name === "ai-farcry3" ||
+    (msg.channel as TextChannel)?.parent?.name === "ai-farcry3";
   let is_farcry3_en =
-    msg.channel.name === "ai-farcry3-en" ||
-    msg.channel?.parent?.name === "ai-farcry3-en";
+    (msg.channel as TextChannel).name === "ai-farcry3-en" ||
+    (msg.channel as TextChannel)?.parent?.name === "ai-farcry3-en";
 
   if (is_farcry3) {
     return farcryRolePlayRUPrompt(msg);
@@ -821,8 +807,8 @@ function buildSystemMessage(msg) {
   if (is_farcry3_en) {
     return farcryRolePlayENPrompt(msg);
   }
-  let channelInstructions;
-  switch (msg.channel.name) {
+  let channelInstructions: string;
+  switch ((msg.channel as TextChannel).name) {
     case "chat-bot-prompt-testing":
       return currentTestPrompt;
     case "ai-cpp-code-assistant":
@@ -903,20 +889,20 @@ ${channelInstructions}
 The User information:
 * ID: ${msg.author.id}
 * Name: ${msg.author.username}
-* Role: ${msg.member.roles.cache.map((r) => r.name).join(", ")}
+* Role: ${msg.member?.roles.cache.map((r: Role) => r.name).join(", ")}
 
 General information:
 * The discord server is mainly about reverse engineering, gaming, programming, and artificial intelligence.
-* Current Discord channel is: #${msg.channel.name}
+* Current Discord channel is: #${(msg.channel as TextChannel).name}
 * Youtube channel: https://www.youtube.com/h0x91b
 * Github: https://github.com/h0x91b
 * Telegram: https://t.me/ai_plus_plus
 `;
 }
 
-let fluxSchnell = null;
+let fluxSchnell: any = null;
 
-async function handleImageGeneration(msg) {
+async function handleImageGeneration(msg: Message) {
   try {
     await msg.react("👀");
 
@@ -942,7 +928,7 @@ async function handleImageGeneration(msg) {
       }
     );
 
-    if (!output || !output[0]) {
+    if (!output || !Array.isArray(output) || !output[0]) {
       throw new Error("Failed to generate image.");
     }
 
@@ -950,10 +936,12 @@ async function handleImageGeneration(msg) {
       content: `[black-forest-labs/flux-schnell 0.03$] Image generated with prompt: ${prompt}`,
       files: [output[0]],
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error in handleImageGeneration:", error);
     await msg.reply(
-      `An error occurred while generating the image: ${error.message}`
+      `An error occurred while generating the image: ${
+        (error as Error).message
+      }`
     );
   } finally {
     try {
