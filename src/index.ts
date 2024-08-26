@@ -1,11 +1,9 @@
 import dotenv from "dotenv";
 import Replicate from "replicate";
 import { promises as fsP, unlinkSync } from "fs";
-import fs from "fs";
 import axios from "axios";
 import { encode, decode } from "gpt-3-encoder";
 import { Events, TextChannel, Role, Message } from "discord.js";
-import { convert as convertNumberToWordsRu } from "number-to-words-ru";
 
 import {
   farcryRolePlayRUPrompt,
@@ -14,6 +12,7 @@ import {
 import { coderChatbotHandler } from "./commands/coder";
 import { loadReferenceMessage } from "./services/discord";
 import { initializeBot } from "./bot";
+import { handleGrammarFix2 } from "./handlers/grammarHandlers";
 
 dotenv.config();
 
@@ -22,7 +21,6 @@ const replicate = new Replicate({
 });
 
 let availableDiscordChannels: string[] = [];
-let rpgRole = "Trevor GTA 5";
 
 const client = initializeBot();
 
@@ -47,89 +45,6 @@ const aiCodeAssistChannels = [
   "ai-any-language",
   "ai-rude",
 ];
-
-function downloadAudio(
-  url: string,
-  filename: string,
-  msg: Message,
-  text: string
-): Promise<string> {
-  return new Promise((resolve, reject) => {
-    axios
-      .get(url, { responseType: "stream" })
-      .then(async (response) => {
-        const writeStream = fs.createWriteStream(filename);
-
-        // Pipe the response data into the write stream
-        response.data.pipe(writeStream);
-
-        // Listen for the 'finish' event on the write stream
-        writeStream.on("finish", async () => {
-          console.log(`Audio file saved as "${filename}"`);
-
-          resolve(filename);
-        });
-      })
-      .catch((error) => {
-        console.error("Error downloading audio file:", error.message);
-        reject(error);
-      });
-  });
-}
-
-function synthesizeSpeech(
-  voiceId: string,
-  text: string,
-  format = "mp3"
-): Promise<any> {
-  const url = "https://api.voice.steos.io/v1/get/tts";
-  const headers = {
-    Accept: "application/json",
-    "Content-Type": "application/json",
-    Authorization: process.env.VOICE_STEOS_API_KEY,
-  };
-
-  let fixes: [string, string][] = [
-    ["\\+", "плюс"],
-    ["помочь", "пом+очь"],
-    ["готов", "гот+ов"],
-    ["писать", "пис+ать"],
-    ["дорогой", "дорог+ой"],
-    ["самого", "самов+о"],
-    ["все сделал", "всё сделал"],
-    ["большую", "больш+ую"],
-  ];
-  let fixedText = text;
-  fixes.forEach(([from, to]) => {
-    // replace all
-    fixedText = fixedText.replace(new RegExp(from, "gi"), to);
-  });
-
-  // find all digits and convert them to words
-  const digits = fixedText.match(/\d+/g);
-  if (digits) {
-    digits.forEach((digit) => {
-      const digitWords = convertNumberToWordsRu(digit, {
-        showNumberParts: {
-          fractional: false,
-        },
-        showCurrency: {
-          integer: false,
-        },
-      });
-      fixedText = fixedText.replace(digit, digitWords);
-    });
-  }
-  console.log("fixedText", fixedText);
-
-  const body = {
-    voice_id: voiceId,
-    text: fixedText,
-    format,
-  };
-
-  return axios.post(url, body, { headers });
-}
 
 client.on("ready", async () => {
   if (client.user) {
@@ -245,148 +160,13 @@ client.on(Events.MessageCreate, async (msg: Message) => {
       currentTestPrompt = prompt;
       await msg.reply(`New prompt: "${currentTestPrompt}"`);
     } else if (fixGrammarUsers.includes(msg.author.id)) {
-      await handleGrammarFix2(msg);
+      await handleGrammarFix2(msg, getUserLastMessage, gpt);
     }
   } catch (e: unknown) {
     console.error(e);
     msg.reply("Error: " + (e as Error).message);
   }
 });
-
-let grammarTimers: { [key: string]: NodeJS.Timeout } = {};
-let lastUserMessageId: { [key: string]: number } = {};
-
-async function handleGrammarFix(msg: Message) {
-  console.log("handleGrammarFix", msg.author.username, msg.content);
-  if (grammarTimers[msg.author.id]) {
-    clearTimeout(grammarTimers[msg.author.id]);
-  }
-  grammarTimers[msg.author.id] = setTimeout(async () => {
-    delete grammarTimers[msg.author.id];
-    const prompt = `The AI assistant can analyze user input and correct grammatical errors in the user's native language:
-{"errorCount": errorCount, "errors": errors, "fixed": fixed}.
-
-The "errorCount" field is a count of found errors.
-The "errors" field is an array of strings in format "before -> after" where "before" is found misspelled word and "after" the fixed version.
-The "fixed" field is a full fixed user input.
-
-If the user input can't be parsed, return it in JSON without changes.
-New lines MUST be replaced by "\\n" in the "fixed" field to be a valid JSON.
-
-Here are several cases for your reference:
-
----
-User: "I have a problim with myy VPN."
-{"errorCount": 2, "errors": [ "problim -> problem", "myy -> my" ], "fixed": "I have a problem with my VPN."}
----
-User: "он в разных интерпритаиях есть."
-{"errorCount": 1, "errors": [ "интерпритаиях -> "интерпретациях" ], "fixed": "он в разных интерпретациях есть."}
----
-User: "кароче\nон дал дал даобро на шитхаб твой"
-{"errorCount": 3, "errors": [ "кароче -> короче", "даобро -> добро", "шитхаб -> гитхаб" ], "fixed": "короче\\nон дал дал добро на гитхаб твой"}
----
-User: "$!43423432!#@"
-{"errorCount": 0, "errors": [], "fixed": "$!43423432!#@"}
----
-`;
-    const lastId = lastUserMessageId[msg.author.id] || 0;
-    const lastMessages = (
-      await getUserLastMessage(msg, 10, 1000 * 60 * 5)
-    ).filter(({ createdTimestamp }) => createdTimestamp > lastId);
-    if (!lastMessages.length) return;
-    const response = await gpt(
-      msg,
-      [
-        {
-          role: "user",
-          content: `User: ${JSON.stringify(
-            lastMessages.map(({ content }) => content).join("\n")
-          )}`,
-        },
-      ],
-      {
-        overrideSystemMessage: prompt,
-        skipCost: true,
-        skipCounter: true,
-        skipReactions: true,
-      }
-    );
-    console.log("fix grammar response: ", response);
-    try {
-      const obj = JSON.parse(response);
-      lastUserMessageId[msg.author.id] = msg.createdTimestamp;
-      if (!obj.errorCount) return;
-      await msg.reply(`Fixed ${obj.errorCount} grammar errors:
-\`\`\`
-${obj.fixed}
-\`\`\`
-`);
-    } catch (e) {}
-  }, 15000);
-}
-
-async function handleGrammarFix2(msg: Message) {
-  console.log("handleGrammarFix2", msg.author.username, msg.content);
-  if (grammarTimers[msg.author.id]) {
-    clearTimeout(grammarTimers[msg.author.id]);
-  }
-  grammarTimers[msg.author.id] = setTimeout(async () => {
-    delete grammarTimers[msg.author.id];
-    const prompt = `You are an assistant to a disabled person with tunnel syndrome,
-he writes text, skipping or missing buttons, your task is to understand what he was trying to type. You must determine what language he is typing in, and answer using only that language. Hint, the user is usually talking about programming, games, and reverse-engineering, so he can use slang words.
-
-You should only respond to fixed user input. All fixed words should be marked with **bold**.
-
-Example 1:
-User: "я ъзх как тут поыфиксетьб
-я **хз**, как тут **пофиксить**.
-
-Example 2:
-User: "тут еше бывает мусор проивается"
-тут **ещё** бывает мусор **просачивается**
-
-Example 3:
-User: "зщадеваешь пальцы опухшиек не всегал попадают точнр по одной копке"
-**задеваешь**, пальцы **опухшие**, не всегда попадают **точно** по одной кнопке.
-
-Example 4:
-User: "блин 8 вечера я не щарелищзился). я кароче жту забисьотклчаю на сутки. соори))"
-блин 8 вечера я не **зарелизился**). я **короче** **эту** **запись** **отключаю** на сутки. **сорри**))
----`;
-
-    const lastId = lastUserMessageId[msg.author.id] || 0;
-    const lastMessages = (
-      await getUserLastMessage(msg, 10, 1000 * 60 * 5)
-    ).filter(({ createdTimestamp }) => createdTimestamp > lastId);
-    if (!lastMessages.length) return;
-    if (lastMessages.map(({ content }) => content).join("").length < 5) return;
-    const response = await gpt(
-      msg,
-      [
-        {
-          role: "user",
-          content: `${JSON.stringify(
-            lastMessages.map(({ content }) => content).join("\n")
-          )}`,
-        },
-      ],
-      {
-        overrideSystemMessage: prompt,
-        skipCost: true,
-        skipCounter: true,
-        skipReactions: true,
-      }
-    );
-    console.log("fix grammar response: ", response);
-    lastUserMessageId[msg.author.id] = msg.createdTimestamp;
-    // in [this message](${msg.url})
-    await msg.channel.send(`Fixed grammar errors for user "${
-      msg.author.username
-    }":
-${response.replace(/\\n/g, "\n")}
-`);
-  }, 45000);
-}
 
 client.login(process.env.DISCORD_BOT_TOKEN);
 
@@ -419,79 +199,6 @@ async function handleGpt(msg: Message) {
   );
   // return generateVoiceResponse(msg, response);
   sendSplitResponse(msg, response);
-}
-
-async function generateVoiceResponse(msg: Message, response: string) {
-  return sendSplitResponse(msg, response);
-  if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
-    return sendSplitResponse(msg, response);
-  // sendSplitResponse(msg, response);
-  // const voiceId = 18;
-  // const voiceId = 194;
-  // const voiceId = 100;
-  const voiceId = 169;
-  // const voiceId = 13;
-  const text = response;
-  const format = "mp3";
-
-  let codeFile: string | undefined;
-  const regexCode = /```(?:([a-zA-Z0-9\+]+)\n)?([\s\S]*?)```/g;
-
-  let match = regexCode.exec(text);
-
-  if (match) {
-    const language = match?.[1] || "txt";
-    const code = match?.[2] || "";
-
-    console.log("Language:", language);
-    console.log("Code:", code);
-
-    codeFile = `output.${Math.floor(Math.random() * 1000000)}.${language}`;
-    await fsP.writeFile(codeFile!, code);
-    setTimeout(() => {
-      unlinkSync(codeFile!);
-    }, 60000);
-  }
-
-  const regex = /^\[([^\n]*)\]/;
-  const regex2 = /\|\|(.*)\|\|/g;
-  const regex3 = /```([\s\S]*?)```/g;
-  let cleanedMessage = text
-    .replace(regex, "")
-    .replace(regex2, "")
-    .replace(regex3, "")
-    .trim();
-
-  const { data: synthesisData } = await synthesizeSpeech(
-    voiceId.toString(),
-    cleanedMessage,
-    format
-  );
-
-  if (synthesisData.status) {
-    const file = `output.${Math.floor(Math.random() * 1000000)}.${
-      synthesisData.format
-    }`;
-    await downloadAudio(synthesisData.audio_url, file, msg, response);
-    // Send the MP3 file after the download has finished
-    let files = [file];
-    if (codeFile) files.push(codeFile!);
-    await msg.reply({
-      content: response.replace(regex3, ""),
-      files,
-    });
-
-    setTimeout(() => {
-      // delete file
-      unlinkSync(file);
-      if (codeFile) unlinkSync(codeFile);
-    }, 15000);
-  } else {
-    console.error("Error synthesizing speech:", synthesisData.message);
-    await msg.reply({
-      content: response,
-    });
-  }
 }
 
 async function handleMessageWithEmiliaMention(msg: Message) {
