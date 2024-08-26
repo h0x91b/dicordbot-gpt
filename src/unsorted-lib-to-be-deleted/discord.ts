@@ -6,7 +6,7 @@ import path from "path";
 import fetch from "node-fetch";
 
 import { extractCodeFromMessage } from "../utils";
-import { processImage, encodeImageToBase64 } from "./image-processing";
+import { processImage, encodeImageToBase64 } from "../utils/image-processing";
 
 interface ContentBlock {
   type: string;

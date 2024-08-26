@@ -4,21 +4,14 @@ import { promises as fsP, unlinkSync } from "fs";
 import fs from "fs";
 import axios from "axios";
 import { encode, decode } from "gpt-3-encoder";
-import {
-  Client,
-  Events,
-  GatewayIntentBits,
-  TextChannel,
-  Role,
-  Message,
-} from "discord.js";
+import { Events, TextChannel, Role, Message } from "discord.js";
 import { convert as convertNumberToWordsRu } from "number-to-words-ru";
 
 import {
   farcryRolePlayRUPrompt,
   farcryRolePlayENPrompt,
-} from "./unsorted-lib-to-be-deleted/farcry3";
-import { coderChatbotHandler } from "./unsorted-lib-to-be-deleted/coder-chatbot";
+} from "./prompts/farcry3";
+import { coderChatbotHandler } from "./commands/coder";
 import { loadReferenceMessage } from "./unsorted-lib-to-be-deleted/discord";
 import { initializeBot } from "./bot";
 

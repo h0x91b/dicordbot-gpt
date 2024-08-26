@@ -1,6 +1,6 @@
 import { Anthropic } from "@anthropic-ai/sdk";
 import sharp from "sharp";
-import { calculateImageTokens } from "./image-processing";
+import { calculateImageTokens } from "../utils/image-processing";
 import { MessageParam } from "@anthropic-ai/sdk/resources";
 
 export function getAnthropicClient() {
