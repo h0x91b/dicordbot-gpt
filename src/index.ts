@@ -20,6 +20,7 @@ import {
 } from "./unsorted-lib-to-be-deleted/farcry3";
 import { coderChatbotHandler } from "./unsorted-lib-to-be-deleted/coder-chatbot";
 import { loadReferenceMessage } from "./unsorted-lib-to-be-deleted/discord";
+import { initializeBot } from "./bot";
 
 dotenv.config();
 
@@ -30,15 +31,7 @@ const replicate = new Replicate({
 let availableDiscordChannels: string[] = [];
 let rpgRole = "Trevor GTA 5";
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers,
-  ],
-});
+const client = initializeBot();
 
 const authorsToAllowGPT4 = [
   "405507382207315978", //h0x91b
