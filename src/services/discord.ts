@@ -1,7 +1,6 @@
 // src/services/discord.ts
 import { Message, TextChannel, Attachment } from "discord.js";
-import fetch from "node-fetch";
-import { processImage, encodeImageToBase64 } from "../utils/image-processing";
+import { processImage, encodeImageToBase64 } from "../utils";
 import { ProcessedMessage, ConversationMessage, ContentBlock } from "../types/";
 import {
   fetchAttachmentContent,
@@ -21,7 +20,9 @@ export async function fetchMessageHistory(
     const attachments = await downloadAttachmentsFromMessage(refMsgObj);
     const processedAttachments = await Promise.all(
       attachments.map(async (attachment) => {
-        const processedImage = await processImage(Buffer.from(attachment, 'utf-8'));
+        const processedImage = await processImage(
+          Buffer.from(attachment, "utf-8")
+        );
         return encodeImageToBase64(processedImage);
       })
     );
@@ -38,7 +39,9 @@ export async function fetchMessageHistory(
   const attachments = await downloadAttachmentsFromMessage(msg);
   const processedAttachments = await Promise.all(
     attachments.map(async (attachment) => {
-      const processedImage = await processImage(Buffer.from(attachment, 'utf-8'));
+      const processedImage = await processImage(
+        Buffer.from(attachment, "utf-8")
+      );
       return encodeImageToBase64(processedImage);
     })
   );
