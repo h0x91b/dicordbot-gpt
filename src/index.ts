@@ -12,7 +12,7 @@ import {
   farcryRolePlayENPrompt,
 } from "./prompts/farcry3";
 import { coderChatbotHandler } from "./commands/coder";
-import { loadReferenceMessage } from "./unsorted-lib-to-be-deleted/discord";
+import { loadReferenceMessage } from "./services/discord";
 import { initializeBot } from "./bot";
 
 dotenv.config();

@@ -1,6 +1,6 @@
 // lib/coder-chatbot.js
 import { Message, TextChannel } from "discord.js";
-import { fetchMessageHistory } from "../unsorted-lib-to-be-deleted/discord";
+import { fetchMessageHistory } from "../services/discord";
 import {
   getChatCompletion as getChatCompletionClaude,
   AnthropicModel,
