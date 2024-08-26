@@ -11,8 +11,10 @@ import {
   TextChannel,
   Role,
   Message,
+  User,
 } from "discord.js";
 import { convert as convertNumberToWordsRu } from "number-to-words-ru";
+import Sentiment from "sentiment"; // Example sentiment analysis library
 
 import { farcryRolePlayRUPrompt, farcryRolePlayENPrompt } from "./lib/farcry3";
 import { coderChatbotHandler } from "./lib/coder-chatbot";
@@ -37,28 +39,57 @@ const client = new Client({
   ],
 });
 
-const authorsToAllowGPT4 = [
-  "405507382207315978", //h0x91b
-  "431153536768933888", //xxsemaxx
-];
-const authorsToAllowDocIndex = [
-  "405507382207315978", //h0x91b
-];
-const fixGrammarUsers: string[] = [
-  // "309119244979798016", // Wlastas
-  // "405507382207315978", // h0x91b
-];
+// Configuration (move to a separate file for better organization)
+const config = {
+  authorsToAllowGPT4: ["405507382207315978", "431153536768933888"],
+  authorsToAllowDocIndex: ["405507382207315978"],
+  fixGrammarUsers: [],
+  aiCodeAssistChannels: [
+    "ai-cpp-code-assistant",
+    "ai-zig-code-assistant",
+    "ai-js-code-assistant",
+    "ai-python-code-assistant",
+    "ai-csharp-code-assistant",
+    "ai-any-language",
+    "ai-rude",
+  ],
+  allowedMuteBanUsers: ["user_id_1", "user_id_2"], // Add allowed user IDs here
+};
 
-const aiCodeAssistChannels = [
-  "ai-cpp-code-assistant",
-  "ai-zig-code-assistant",
-  "ai-js-code-assistant",
-  "ai-python-code-assistant",
-  "ai-csharp-code-assistant",
-  "ai-any-language",
-  "ai-rude",
-];
+// Database (using a simple JSON file for demonstration)
+const databaseFile = "user_personalities.json";
+let userPersonalities: { [key: string]: string } = {};
 
+// Load database on startup
+try {
+  const data = fs.readFileSync(databaseFile, "utf8");
+  userPersonalities = JSON.parse(data);
+} catch (error) {
+  console.error("Error loading database:", error);
+}
+
+// Save database on exit (consider using a more robust method for production)
+process.on("exit", () => {
+  saveDatabase();
+});
+
+function saveDatabase() {
+  try {
+    const data = JSON.stringify(userPersonalities);
+    fs.writeFileSync(databaseFile, data, "utf8");
+  } catch (error) {
+    console.error("Error saving database:", error);
+  }
+}
+
+// Token Caching with Size Limit
+const tokenCache: { [key: string]: number } = {};
+const MAX_CACHE_SIZE = 1000; // Adjust as needed
+
+// Initialize Sentiment Analyzer
+const sentimentAnalyzer = new Sentiment();
+
+// Function to download audio
 function downloadAudio(
   url: string,
   filename: string,
@@ -88,6 +119,7 @@ function downloadAudio(
   });
 }
 
+// Function to synthesize speech
 function synthesizeSpeech(
   voiceId: string,
   text: string,
@@ -142,127 +174,258 @@ function synthesizeSpeech(
   return axios.post(url, body, { headers });
 }
 
-client.on("ready", async () => {
-  if (client.user) {
-    console.log(`Logged in as ${client.user.tag}!`);
-  }
+// GPT Interaction with Personality and Token Caching
+async function gpt(msg: Message, conversation: any[], options: GptOptions = {}) {
+  const now = Date.now();
+  let userPersonality = userPersonalities[msg.author.id] || "";
 
-  console.log("guilds", client.guilds);
-  // get all available channels
-  client.guilds.cache.forEach((guild) => {
-    console.log(`Guild: ${guild.name}`);
-    guild.channels.cache.forEach((channel) => {
-      if (channel.type === 0) {
-        availableDiscordChannels.push(`#${channel.name} - <#${channel.id}>`);
-      }
+  // Add personality to system message
+  const systemMessage =
+    options?.overrideSystemMessage ||
+    buildSystemMessage(msg) +
+    `\nUser Personality: ${userPersonality}`;
+
+  const messages = [];
+  if (conversation.length < 1 || options?.putSystemMessageFirst) {
+    messages.push({
+      role: "system",
+      content: systemMessage,
     });
-  });
-  console.log("availableDiscordChannels", availableDiscordChannels.join("\n"));
-  // hardcode for now
-  availableDiscordChannels = [
-    "#job-offers - <#979685559654027295>",
-    "#games - <#671455728027959322>",
-    "#cheat-engine - <#979712419481939999>",
-    "#ai-general-talk - <#989926403296337930>",
-    "#ai-news-and-links - <#1086196398749401149>",
-    "#welcome-log - <#979709375428067328>",
-    "#reversing-private - <#825060891510308887>",
-    "#general-chat-eng - <#605806276986929156>",
-    "#off-topic - <#584036601101811717>",
-    "#useful-tools - <#711183558823116822>",
-    "#c-sharp-dotnet - <#1019117646337277962>",
-    "#ida - <#979712336153681970>",
-    "#unity - <#1016016146694152252>",
-    "#gta-2 - <#589057145505447947>",
-    "#general-chat-rus - <#605806197362130944>",
-    "#rules - <#979685480763363398>",
-    "#3d-print-and-craft - <#749224717470138428>",
-    "#gta-4 - <#1015386490836107455>",
-    "#blender - <#642781641886007337>",
-    "#image-generation - <#1086196670053761064>",
-    "#ai-farcry3 - <#1087396339169640518>",
-    "#information - <#979716935149318224>",
-    "#ghidra - <#586606271810109441>",
-    "#unreal-engine - <#1016016179560726638>",
-  ];
-});
-
-async function getUserLastMessage(
-  msg: Message,
-  count = 10,
-  maxTime = 1000 * 60 * 5
-): Promise<{ createdTimestamp: number; content: string }[]> {
-  const userId = msg.author.id;
-  const channelId = msg.channel.id;
-
-  const channel = await client.channels.fetch(channelId);
-  if (!(channel instanceof TextChannel)) {
-    console.log("This is not a text channel");
-    return [];
+  }
+  for (let i = 0; i < conversation.length; i++) {
+    if (1 === conversation.length - i && !options?.putSystemMessageFirst) {
+      messages.push({
+        role: "system",
+        content: systemMessage,
+      });
+    }
+    messages.push(conversation[i]);
   }
 
-  const messages = await channel.messages.fetch({ limit: 50 });
+  console.log("gpt", { messages });
 
-  const userMessages = messages
-    .filter((msg) => msg.author.id === userId)
-    .filter((msg) => Date.now() - msg.createdTimestamp < maxTime)
-    .first(count)
-    .map(({ createdTimestamp, content }) => ({
-      createdTimestamp,
-      content,
-    }));
-  userMessages.reverse();
-  return userMessages;
+  // Image Generation Logic
+  if (
+    options.generateImage &&
+    conversation[conversation.length - 1].content.includes("!image")
+  ) {
+    try {
+      const prompt = conversation[conversation.length - 1].content
+        .replace("!image", "")
+        .trim();
+      if (!prompt) {
+        return "Please provide a prompt for the image generation.";
+      }
+
+      if (!fluxSchnell) {
+        fluxSchnell = await replicate.models.get(
+          "black-forest-labs",
+          "flux-schnell"
+        );
+      }
+
+      const input = { prompt, disable_safety_checker: true };
+      const output = await replicate.run(
+        `black-forest-labs/flux-schnell:${fluxSchnell.latest_version.id}`,
+        { input }
+      );
+
+      if (!output || !Array.isArray(output) || !output[0]) {
+        throw new Error("Failed to generate image.");
+      }
+
+      // Add image URL to the conversation
+      conversation.push({
+        role: "assistant",
+        content: `[black-forest-labs/flux-schnell 0.03$] Image generated with prompt: ${prompt}`,
+        image: output[0], // Add the image URL
+      });
+    } catch (error) {
+      console.error("Error generating image:", error);
+      return `An error occurred while generating the image: ${
+        (error as Error).message
+      }`;
+    }
+  }
+
+  const model = getGPTModelName(msg);
+  const requestBody = {
+    model,
+    messages,
+    user: `<@${msg.author.id}>`,
+    max_tokens: 600,
+  };
+
+  let timeout: NodeJS.Timeout | null = null;
+  const maxResponseTime = 120000;
+  try {
+    const reactions = [
+      "0️⃣",
+      "🪆",
+      "1️⃣",
+      "♠",
+      "2️⃣",
+      "♥",
+      "3️⃣",
+      "♦",
+      "4️⃣",
+      "♣",
+      "5️⃣",
+      "🩴",
+      "6️⃣",
+      "🩲",
+      "7️⃣",
+      "🩳",
+      "8️⃣",
+      "🩰",
+      "9️⃣",
+      "👠",
+      "🔟",
+      "🎓",
+      "💣",
+    ];
+
+    let currentIndex = 0;
+
+    async function fn() {
+      if (currentIndex > 0) {
+        const previousReaction = msg.reactions.resolve(
+          reactions[currentIndex - 1]
+        );
+        if (previousReaction && client.user) {
+          previousReaction.users.remove(client.user.id);
+        }
+      }
+
+      if (currentIndex < reactions.length) {
+        msg.react(reactions[currentIndex]);
+        currentIndex++;
+        timeout = setTimeout(fn, maxResponseTime / 10);
+      }
+    }
+
+    if (!options.skipReactions)
+      timeout = setTimeout(fn, maxResponseTime / reactions.length);
+    const response = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      requestBody,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        },
+        timeout: maxResponseTime,
+      }
+    );
+    if (timeout) clearTimeout(timeout);
+    const { choices, ...meta } = response.data;
+    console.log("gpt response", choices, meta);
+    const responseTime = ((Date.now() - now) / 1000).toFixed(2);
+    console.log("responseTime", responseTime);
+    if (options.skipCost) return choices[0].message.content;
+    let price: number;
+
+    switch (model) {
+      case "gpt-3.5-turbo":
+      case "gpt-3.5-turbo-16k":
+        price =
+          (meta.usage.prompt_tokens / 1000000) * 1.5 +
+          (meta.usage.completion_tokens / 1000000) * 2.0;
+        break;
+      case "gpt-4":
+        price =
+          (meta.usage.prompt_tokens / 1000000) * 30.0 +
+          (meta.usage.completion_tokens / 1000000) * 60.0;
+        break;
+      case "gpt-4-turbo":
+        price =
+          (meta.usage.prompt_tokens / 1000000) * 10.0 +
+          (meta.usage.completion_tokens / 1000000) * 30.0;
+        break;
+      case "gpt-4o":
+        price =
+          (meta.usage.prompt_tokens / 1000000) * 5.0 +
+          (meta.usage.completion_tokens / 1000000) * 15.0;
+        break;
+      default:
+        price = 999.99;
+        break;
+    }
+
+    // Calculate tokens and use cached value if available
+    const tokensKey = JSON.stringify(messages);
+    let tokens = tokenCache[tokensKey];
+    if (!tokens) {
+      tokens = calculateTokens(JSON.stringify(messages));
+      // Manage cache size
+      if (Object.keys(tokenCache).length >= MAX_CACHE_SIZE) {
+        // Remove the oldest entry from the cache (using LRU principle)
+        const oldestKey = Object.keys(tokenCache)[0];
+        delete tokenCache[oldestKey];
+      }
+      tokenCache[tokensKey] = tokens; // Cache the token count
+    }
+
+    // Update user personality based on conversation
+    userPersonalities[msg.author.id] = updateUserPersonality(
+      userPersonalities[msg.author.id] || "",
+      conversation
+    );
+
+    saveDatabase();
+
+    return (
+      `[${model} cost: ${price.toFixed(4)}$ tokens: ${
+        meta.usage.prompt_tokens + meta.usage.completion_tokens
+      }]
+` + choices[0].message.content
+    );
+  } catch (error: any) {
+    console.error(
+      "Error calling ChatGPT API:",
+      error?.response?.status,
+      error?.response?.statusText,
+      error?.response?.data?.error,
+      error?.response?.headers
+    );
+    clearTimeout(timeout!);
+    return `Error calling ChatGPT API: ${error?.response?.status} ${
+      error?.response?.statusText
+    } \`\`\`${JSON.stringify(error?.response?.data?.error, null, 2)}\`\`\``;
+  }
 }
 
-client.on(Events.MessageCreate, async (msg: Message) => {
-  console.log("on messageCreate", msg.content, {
-    author: msg.author.username,
-    authorId: msg.author.id,
-    channel: (msg.channel as TextChannel).name,
-    time: new Date().toISOString(),
-    attachments: msg.attachments,
-    parentName: (msg.channel as TextChannel).parent?.name,
-  });
-  try {
-    if (msg.author.bot) return;
-    if (msg.content === "!hello") {
-      await handleHello(msg);
-    } else if (
-      msg.content.startsWith("!gpt") ||
-      msg.content.startsWith("!гпт")
-    ) {
-      if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name)) {
-        await coderChatbotHandler(msg);
-      } else {
-        await handleGpt(msg);
-      }
-    } else if (
-      msg.content.startsWith("!img") ||
-      msg.content.startsWith("!image")
-    ) {
-      await handleImageGeneration(msg);
-    } else if (isBotMentioned(msg)) {
-      if (msg.author.id === "1085479521240743946") return;
-      if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name)) {
-        await coderChatbotHandler(msg);
-      } else {
-        await handleMessageWithEmiliaMention(msg);
-      }
-    } else if (msg.content.startsWith("!prompt")) {
-      msg.reply(`Current prompt: "${currentTestPrompt}"`);
-    } else if (msg.content.startsWith("!setprompt")) {
-      const prompt = msg.content.replace("!setprompt", "").trim();
-      currentTestPrompt = prompt;
-      await msg.reply(`New prompt: "${currentTestPrompt}"`);
-    } else if (fixGrammarUsers.includes(msg.author.id)) {
-      await handleGrammarFix2(msg);
+// Function to update user personality
+function updateUserPersonality(currentPersonality: string, conversation: any[]) {
+  // Analyze the conversation and extract relevant information
+  let updatedPersonality = currentPersonality;
+  for (const message of conversation) {
+    const content = message.content.toLowerCase();
+
+    // Example: Detect interests based on keywords
+    if (content.includes("programming")) {
+      updatedPersonality += "Interested in programming. ";
     }
-  } catch (e: unknown) {
-    console.error(e);
-    msg.reply("Error: " + (e as Error).message);
+    if (content.includes("gaming")) {
+      updatedPersonality += "Enjoys gaming. ";
+    }
+
+    // Example: Detect sentiment (positive, negative, neutral)
+    const sentimentResult = sentimentAnalyzer.analyze(content);
+    if (sentimentResult.score > 0) {
+      updatedPersonality += "Generally positive sentiment. ";
+    } else if (sentimentResult.score < 0) {
+      updatedPersonality += "Generally negative sentiment. ";
+    } else {
+      updatedPersonality += "Neutral sentiment. ";
+    }
+
+    // Example: Detect personality traits using NLP techniques
+    // ... (This is a complex task and requires a dedicated NLP library or API)
   }
-});
+
+  return updatedPersonality;
+}
 
 let grammarTimers: { [key: string]: NodeJS.Timeout } = {};
 let lastUserMessageId: { [key: string]: number } = {};
@@ -399,6 +562,199 @@ ${response.replace(/\\n/g, "\n")}
   }, 45000);
 }
 
+// Add Mute and Ban Commands (Admin or Whitelisted Users Only)
+async function handleMute(msg: Message, mentionedUser: User) {
+  if (
+    !msg.member?.permissions.has("ADMINISTRATOR") &&
+    !config.allowedMuteBanUsers.includes(msg.author.id)
+  ) {
+    return msg.reply("You do not have permission to use this command.");
+  }
+
+  const mutedRole = msg.guild?.roles.cache.find((role) => role.name === "Muted"); // Replace "Muted" with the actual name of your muted role
+  if (!mutedRole) {
+    return msg.reply("Muted role not found.");
+  }
+
+  try {
+    await mentionedUser.roles.add(mutedRole);
+    msg.reply(`User ${mentionedUser.username} has been muted.`);
+  } catch (error) {
+    console.error("Error muting user:", error);
+    msg.reply("An error occurred while muting the user.");
+  }
+}
+
+async function handleBan(msg: Message, mentionedUser: User) {
+  if (
+    !msg.member?.permissions.has("ADMINISTRATOR") &&
+    !config.allowedMuteBanUsers.includes(msg.author.id)
+  ) {
+    return msg.reply("You do not have permission to use this command.");
+  }
+
+  try {
+    await msg.guild?.members.ban(mentionedUser);
+    msg.reply(`User ${mentionedUser.username} has been banned.`);
+  } catch (error) {
+    console.error("Error banning user:", error);
+    msg.reply("An error occurred while banning the user.");
+  }
+}
+
+// Update Event Handling for Mute and Ban Commands
+client.on(Events.MessageCreate, async (msg: Message) => {
+  console.log("on messageCreate", msg.content, {
+    author: msg.author.username,
+    authorId: msg.author.id,
+    channel: (msg.channel as TextChannel).name,
+    time: new Date().toISOString(),
+    attachments: msg.attachments,
+    parentName: (msg.channel as TextChannel).parent?.name,
+  });
+  try {
+    if (msg.author.bot) return;
+    if (msg.content === "!hello") {
+      await handleHello(msg);
+    } else if (
+      msg.content.startsWith("!gpt") ||
+      msg.content.startsWith("!гпт")
+    ) {
+      if (config.aiCodeAssistChannels.includes((msg.channel as TextChannel).name)) {
+        await coderChatbotHandler(msg);
+      } else {
+        await handleGptWithImageGeneration(msg);
+      }
+    } else if (
+      msg.content.startsWith("!img") ||
+      msg.content.startsWith("!image")
+    ) {
+      await handleImageGeneration(msg);
+    } else if (isBotMentioned(msg)) {
+      if (msg.author.id === "1085479521240743946") return;
+      if (config.aiCodeAssistChannels.includes((msg.channel as TextChannel).name)) {
+        await coderChatbotHandler(msg);
+      } else {
+        await handleMessageWithEmiliaMention(msg);
+      }
+    } else if (msg.content.startsWith("!prompt")) {
+      msg.reply(`Current prompt: "${currentTestPrompt}"`);
+    } else if (msg.content.startsWith("!setprompt")) {
+      const prompt = msg.content.replace("!setprompt", "").trim();
+      currentTestPrompt = prompt;
+      await msg.reply(`New prompt: "${currentTestPrompt}"`);
+    } else if (config.fixGrammarUsers.includes(msg.author.id)) {
+      await handleGrammarFix2(msg);
+    }
+
+    // Mute Command
+    if (msg.content.startsWith("!mute")) {
+      const mentionedUser = msg.mentions.users.first();
+      if (mentionedUser) {
+        await handleMute(msg, mentionedUser);
+      } else {
+        msg.reply("Please mention a user to mute.");
+      }
+    }
+
+    // Ban Command
+    if (msg.content.startsWith("!ban")) {
+      const mentionedUser = msg.mentions.users.first();
+      if (mentionedUser) {
+        await handleBan(msg, mentionedUser);
+      } else {
+        msg.reply("Please mention a user to ban.");
+      }
+    }
+  } catch (e: unknown) {
+    console.error(e);
+    msg.reply("Error: " + (e as Error).message);
+  }
+});
+
+async function getUserLastMessage(
+  msg: Message,
+  count = 10,
+  maxTime = 1000 * 60 * 5
+): Promise<{ createdTimestamp: number; content: string }[]> {
+  const userId = msg.author.id;
+  const channelId = msg.channel.id;
+
+  const channel = await client.channels.fetch(channelId);
+  if (!(channel instanceof TextChannel)) {
+    console.log("This is not a text channel");
+    return [];
+  }
+
+  const messages = await channel.messages.fetch({ limit: 50 });
+
+  const userMessages = messages
+    .filter((msg) => msg.author.id === userId)
+    .filter((msg) => Date.now() - msg.createdTimestamp < maxTime)
+    .first(count)
+    .map(({ createdTimestamp, content }) => ({
+      createdTimestamp,
+      content,
+    }));
+  userMessages.reverse();
+  return userMessages;
+}
+
+client.on("ready", async () => {
+  if (client.user) {
+    console.log(`Logged in as ${client.user.tag}!`);
+  }
+
+  console.log("guilds", client.guilds);
+  // get all available channels
+  client.guilds.cache.forEach((guild) => {
+    console.log(`Guild: ${guild.name}`);
+    guild.channels.cache.forEach((channel) => {
+      if (channel.type === 0) {
+        availableDiscordChannels.push(`#${channel.name} - <#${channel.id}>`);
+      }
+    });
+  });
+  console.log("availableDiscordChannels", availableDiscordChannels.join("\n"));
+  // hardcode for now
+  availableDiscordChannels = [
+    "#job-offers - <#979685559654027295>",
+    "#games - <#671455728027959322>",
+    "#cheat-engine - <#979712419481939999>",
+    "#ai-general-talk - <#989926403296337930>",
+    "#ai-news-and-links - <#1086196398749401149>",
+    "#welcome-log - <#979709375428067328>",
+    "#reversing-private - <#825060891510308887>",
+    "#general-chat-eng - <#605806276986929156>",
+    "#off-topic - <#584036601101811717>",
+    "#useful-tools - <#711183558823116822>",
+    "#c-sharp-dotnet - <#1019117646337277962>",
+    "#ida - <#979712336153681970>",
+    "#unity - <#1016016146694152252>",
+    "#gta-2 - <#589057145505447947>",
+    "#general-chat-rus - <#605806197362130944>",
+    "#rules - <#979685480763363398>",
+    "#3d-print-and-craft - <#749224717470138428>",
+    "#gta-4 - <#1015386490836107455>",
+    "#blender - <#642781641886007337>",
+    "#image-generation - <#1086196670053761064>",
+    "#ai-farcry3 - <#1087396339169640518>",
+    "#information - <#979716935149318224>",
+    "#ghidra - <#586606271810109441>",
+    "#unreal-engine - <#1016016179560726638>",
+  ];
+});
+
+async function handleGptWithImageGeneration(msg: Message) {
+  msg.react("👀");
+  const gptConversation = await fetchMessageHistory(msg);
+  const options: GptOptions = { generateImage: true }; // Add option for image generation
+  if (config.aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
+    options.putSystemMessageFirst = true;
+  const response = await gpt(msg, gptConversation, options);
+  sendSplitResponse(msg, response);
+}
+
 client.login(process.env.DISCORD_BOT_TOKEN);
 
 function isBotMentioned(msg: Message): boolean {
@@ -416,7 +772,7 @@ async function handleHello(msg: Message) {
 async function handleGpt(msg: Message) {
   msg.react("👀");
   const options: GptOptions = {};
-  if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
+  if (config.aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
     options.putSystemMessageFirst = true;
   const response = await gpt(
     msg,
@@ -434,7 +790,7 @@ async function handleGpt(msg: Message) {
 
 async function generateVoiceResponse(msg: Message, response: string) {
   return sendSplitResponse(msg, response);
-  if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
+  if (config.aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
     return sendSplitResponse(msg, response);
   // sendSplitResponse(msg, response);
   // const voiceId = 18;
@@ -487,8 +843,7 @@ async function generateVoiceResponse(msg: Message, response: string) {
     // Send the MP3 file after the download has finished
     let files = [file];
     if (codeFile) files.push(codeFile!);
-    await msg.reply({
-      content: response.replace(regex3, ""),
+    await msg.reply({     content: response.replace(regex3, ""),
       files,
     });
 
@@ -509,7 +864,7 @@ async function handleMessageWithEmiliaMention(msg: Message) {
   msg.react("👀");
   const gptConversation = await fetchMessageHistory(msg);
   const options: GptOptions = {};
-  if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
+  if (config.aiCodeAssistChannels.includes((msg.channel as TextChannel).name))
     options.putSystemMessageFirst = true;
   const response = await gpt(msg, gptConversation, options);
   return sendSplitResponse(msg, response);
@@ -565,7 +920,7 @@ export async function fetchMessageHistory(msg: Message) {
     }
   }
 
-  if (authorsToAllowGPT4.includes(msg.author.id) && msg.attachments.size > 0) {
+  if (config.authorsToAllowGPT4.includes(msg.author.id) && msg.attachments.size > 0) {
     // image API is not enabled yet :(
     // const attachment = msg.attachments.first();
     // const response = await axios.get(attachment.url, {
@@ -622,7 +977,7 @@ function getGPTModelName(msg: Message): string {
   if (!msg || !msg.author.username) return "gpt-3.5-turbo-16k";
   if (
     (msg?.content?.includes("gpt-4") || msg?.content?.includes("gpt4")) &&
-    authorsToAllowGPT4.includes(msg.author.id)
+    config.authorsToAllowGPT4.includes(msg.author.id)
   ) {
     return "gpt-4o";
   }
@@ -636,159 +991,7 @@ interface GptOptions {
   skipReactions?: boolean;
   putSystemMessageFirst?: boolean;
   skipCounter?: boolean;
-}
-
-async function gpt(
-  msg: Message,
-  conversation: any[],
-  options: GptOptions = {}
-) {
-  const now = Date.now();
-  const systemMessage =
-    options?.overrideSystemMessage || buildSystemMessage(msg);
-  const messages = [];
-  if (conversation.length < 1 || options?.putSystemMessageFirst) {
-    messages.push({
-      role: "system",
-      content: systemMessage,
-    });
-  }
-  for (let i = 0; i < conversation.length; i++) {
-    if (1 === conversation.length - i && !options?.putSystemMessageFirst) {
-      messages.push({
-        role: "system",
-        content: systemMessage,
-      });
-    }
-    messages.push(conversation[i]);
-  }
-  console.log("gpt", { messages });
-  const model = getGPTModelName(msg);
-  const requestBody = {
-    model,
-    messages,
-    user: `<@${msg.author.id}>`,
-    max_tokens: 600,
-  };
-
-  let timeout: NodeJS.Timeout | null = null;
-  const maxResponseTime = 120000;
-  try {
-    const reactions = [
-      "0️⃣",
-      "🪆",
-      "1️⃣",
-      "♠",
-      "2️⃣",
-      "♥",
-      "3️⃣",
-      "♦",
-      "4️⃣",
-      "♣",
-      "5️⃣",
-      "🩴",
-      "6️⃣",
-      "🩲",
-      "7️⃣",
-      "🩳",
-      "8️⃣",
-      "🩰",
-      "9️⃣",
-      "👠",
-      "🔟",
-      "🎓",
-      "💣",
-    ];
-
-    let currentIndex = 0;
-
-    async function fn() {
-      if (currentIndex > 0) {
-        const previousReaction = msg.reactions.resolve(
-          reactions[currentIndex - 1]
-        );
-        if (previousReaction && client.user) {
-          previousReaction.users.remove(client.user.id);
-        }
-      }
-
-      if (currentIndex < reactions.length) {
-        msg.react(reactions[currentIndex]);
-        currentIndex++;
-        timeout = setTimeout(fn, maxResponseTime / 10);
-      }
-    }
-
-    if (!options.skipReactions)
-      timeout = setTimeout(fn, maxResponseTime / reactions.length);
-    const response = await axios.post(
-      "https://api.openai.com/v1/chat/completions",
-      requestBody,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        },
-        timeout: maxResponseTime,
-      }
-    );
-    if (timeout) clearTimeout(timeout);
-    const { choices, ...meta } = response.data;
-    console.log("gpt response", choices, meta);
-    const responseTime = ((Date.now() - now) / 1000).toFixed(2);
-    console.log("responseTime", responseTime);
-    if (options.skipCost) return choices[0].message.content;
-    let price: number;
-    // Model	Input	Output
-    // 4K context	$0.0015 / 1K tokens	$0.002 / 1K tokens
-    // 16K context	$0.003 / 1K tokens	$0.004 / 1K tokens
-
-    switch (model) {
-      case "gpt-3.5-turbo":
-      case "gpt-3.5-turbo-16k":
-        price =
-          (meta.usage.prompt_tokens / 1000000) * 1.5 +
-          (meta.usage.completion_tokens / 1000000) * 2.0;
-        break;
-      case "gpt-4":
-        price =
-          (meta.usage.prompt_tokens / 1000000) * 30.0 +
-          (meta.usage.completion_tokens / 1000000) * 60.0;
-        break;
-      case "gpt-4-turbo":
-        price =
-          (meta.usage.prompt_tokens / 1000000) * 10.0 +
-          (meta.usage.completion_tokens / 1000000) * 30.0;
-        break;
-      case "gpt-4o":
-        price =
-          (meta.usage.prompt_tokens / 1000000) * 5.0 +
-          (meta.usage.completion_tokens / 1000000) * 15.0;
-        break;
-      default:
-        price = 999.99;
-        break;
-    }
-
-    return (
-      `[${model} cost: ${price.toFixed(4)}$ tokens: ${
-        meta.usage.prompt_tokens + meta.usage.completion_tokens
-      }]
-` + choices[0].message.content
-    );
-  } catch (error: any) {
-    console.error(
-      "Error calling ChatGPT API:",
-      error?.response?.status,
-      error?.response?.statusText,
-      error?.response?.data?.error,
-      error?.response?.headers
-    );
-    clearTimeout(timeout!);
-    return `Error calling ChatGPT API: ${error?.response?.status} ${
-      error?.response?.statusText
-    } \`\`\`${JSON.stringify(error?.response?.data?.error, null, 2)}\`\`\``;
-  }
+  generateImage?: boolean; // Add this option
 }
 
 let currentTestPrompt = `Исполняй роль шамана оракула, к тебе приходят люди с вопросами, а ты должен научить их мистическому многошаговому ритуалу и обряду, отвечай на вопросы с максимальным мистицизмом и юмором`;
