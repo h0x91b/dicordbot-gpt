@@ -2,25 +2,26 @@
   "name": "gpt-discord-bot",
   "version": "1.0.0",
   "description": "",
-  "main": "index.mjs",
+  "main": "index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "chroma": "cd chroma && colima start && docker-compose up --build",
-    "dev": "nodemon index.mjs",
-    "start": "node index.mjs"
+    "build": "tsc",
+    "build-watch": "tsc --watch",
+    "start": "npm run build && node dist/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only index.ts"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.21.1",
     "axios": "^1.7.2",
-    "chalk": "^5.3.0",
+    "chalk": "^4.1.2",
     "cheerio": "^1.0.0-rc.12",
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
     "gpt-3-encoder": "^1.1.4",
     "js-tiktoken": "^1.0.12",
-    "node-fetch": "^3.3.2",
+    "node-fetch": "^2.7.0",
     "number-to-words-ru": "^2.4.1",
     "openai": "^3.3.0",
     "replicate": "^0.32.0",
@@ -29,6 +30,7 @@
   "devDependencies": {
     "@types/node": "^22.5.0",
     "nodemon": "^2.0.22",
+    "ts-node-dev": "^2.0.0",
     "typescript": "^5.5.4"
   }
 }

@@ -1,6 +1,7 @@
 import { Anthropic } from "@anthropic-ai/sdk";
 import sharp from "sharp";
-import { calculateImageTokens } from "./image-processing.mjs";
+import { calculateImageTokens } from "./image-processing";
+import { MessageParam } from "@anthropic-ai/sdk/resources";
 
 export function getAnthropicClient() {
   const client = new Anthropic({
@@ -10,16 +11,33 @@ export function getAnthropicClient() {
   return client;
 }
 
-/**
- *
- * @param {'claude-3-haiku-20240307'|'claude-3-sonnet-20240229'} model
- * @param {*} messages
- * @param {*} options
- * @returns
- */
-export async function getChatCompletion(model, messages, options = {}) {
+export type AnthropicModel =
+  | "claude-3-haiku-20240307"
+  | "claude-3-5-sonnet-20240620"
+  | "claude-3-opus-20240229";
+
+interface ContentBlock {
+  type: string;
+  text?: string;
+  source?: {
+    type: string;
+    media_type?: string;
+    data?: string;
+  };
+}
+
+interface Message {
+  role: string;
+  content: string | ContentBlock[];
+}
+
+export async function getChatCompletion(
+  model: AnthropicModel,
+  messages: Message[],
+  options: Partial<Anthropic.MessageCreateParams> = {}
+) {
   const client = getAnthropicClient();
-  let system;
+  let system: string | ContentBlock[] = "Helpful assistant";
   const filteredMessages = messages.filter((message) => {
     if (message.role === "system") {
       system = message.content;
@@ -33,18 +51,20 @@ export async function getChatCompletion(model, messages, options = {}) {
     filteredMessages.map(async (message) => {
       if (Array.isArray(message.content)) {
         await Promise.all(
-          message.content.map(async (content) => {
-            if (content.type === "image" && content.source.type === "base64") {
+          message.content.map(async (content: ContentBlock) => {
+            if (content.type === "image" && content.source?.type === "base64") {
               try {
-                const buffer = Buffer.from(content.source.data, "base64");
+                const buffer = Buffer.from(content.source.data || "", "base64");
                 const metadata = await sharp(buffer).metadata();
                 const width = metadata.width;
                 const height = metadata.height;
-                const tokens = calculateImageTokens(width, height);
-                imageTokens += tokens;
-                console.log(
-                  `Image size: ${width}x${height}, Tokens: ${tokens}`
-                );
+                if (width && height) {
+                  const tokens = calculateImageTokens(width, height);
+                  imageTokens += tokens;
+                  console.log(
+                    `Image size: ${width}x${height}, Tokens: ${tokens}`
+                  );
+                }
               } catch (error) {
                 console.error("Error processing image:", error);
               }
@@ -61,44 +81,44 @@ export async function getChatCompletion(model, messages, options = {}) {
     system: system,
     messages: filteredMessages.map((message) => ({
       role: message.role,
-      content: Array.isArray(message.content)
+      content: (Array.isArray(message.content)
         ? message.content
-        : [{ type: "text", text: message.content }],
-    })),
+        : [{ type: "text", text: message.content }]) as ContentBlock[],
+    })) as MessageParam[],
     max_tokens: 750,
   });
 
+  // Type assertion to help TypeScript understand the structure
+  const completionWithUsage = chatCompletion as Message & {
+    usage: { input_tokens: number; output_tokens: number };
+  };
+
   // Теперь добавляем токены изображений к входным токенам
-  const totalInputTokens = chatCompletion.usage.input_tokens + imageTokens;
+  const totalInputTokens = completionWithUsage.usage.input_tokens + imageTokens;
   console.log("Total input tokens:", { totalInputTokens, imageTokens });
 
   // Расчет цены с учетом токенов изображений
-  let price;
+  let price: number;
   switch (model) {
     case "claude-3-5-sonnet-20240620":
       price =
         (totalInputTokens / 1000000) * 3 +
-        (chatCompletion.usage.output_tokens / 1000000) * 15;
-      break;
-    case "claude-3-sonnet-20240229":
-      price =
-        (totalInputTokens / 1000000) * 3 +
-        (chatCompletion.usage.output_tokens / 1000000) * 15;
+        (completionWithUsage.usage.output_tokens / 1000000) * 15;
       break;
     case "claude-3-haiku-20240307":
       price =
         (totalInputTokens / 1000000) * 0.25 +
-        (chatCompletion.usage.output_tokens / 1000000) * 1.25;
+        (completionWithUsage.usage.output_tokens / 1000000) * 1.25;
       break;
     default:
       price = 999.99;
   }
 
   return {
-    ...chatCompletion,
+    ...completionWithUsage,
     price,
     usage: {
-      ...chatCompletion.usage,
+      ...completionWithUsage.usage,
       input_tokens: totalInputTokens,
     },
   };
