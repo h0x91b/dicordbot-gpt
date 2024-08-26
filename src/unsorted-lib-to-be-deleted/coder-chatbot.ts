@@ -6,7 +6,7 @@ import {
   AnthropicModel,
 } from "./anthropic";
 import { getChatCompletion } from "./openai";
-import { tempFile } from "./utils";
+import { tempFile } from "../utils/";
 import * as utils from "util";
 import { ChatCompletionRequestMessage } from "openai";
 

@@ -5,7 +5,7 @@ import fs from "fs/promises";
 import path from "path";
 import fetch from "node-fetch";
 
-import { extractCodeFromMessage } from "./utils";
+import { extractCodeFromMessage } from "../utils";
 import { processImage, encodeImageToBase64 } from "./image-processing";
 
 interface ContentBlock {
