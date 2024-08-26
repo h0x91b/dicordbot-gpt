@@ -7,8 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",
     "build-watch": "tsc --watch",
-    "start": "npm run build && node dist/index.js",
-    "dev": "ts-node-dev --respawn --transpile-only index.ts"
+    "start": "npm run build && node dist/src/index.js",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "redis": "redis-server --save ''"
   },
   "author": "",
   "license": "ISC",
@@ -20,6 +21,7 @@
     "discord.js": "^14.15.3",
     "dotenv": "^16.4.5",
     "gpt-3-encoder": "^1.1.4",
+    "ioredis": "^5.4.1",
     "js-tiktoken": "^1.0.12",
     "node-fetch": "^2.7.0",
     "number-to-words-ru": "^2.4.1",

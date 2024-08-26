@@ -14,9 +14,12 @@ import {
 } from "discord.js";
 import { convert as convertNumberToWordsRu } from "number-to-words-ru";
 
-import { farcryRolePlayRUPrompt, farcryRolePlayENPrompt } from "./lib/farcry3";
-import { coderChatbotHandler } from "./lib/coder-chatbot";
-import { loadReferenceMessage } from "./lib/discord";
+import {
+  farcryRolePlayRUPrompt,
+  farcryRolePlayENPrompt,
+} from "./unsorted-lib-to-be-deleted/farcry3";
+import { coderChatbotHandler } from "./unsorted-lib-to-be-deleted/coder-chatbot";
+import { loadReferenceMessage } from "./unsorted-lib-to-be-deleted/discord";
 
 dotenv.config();
 
