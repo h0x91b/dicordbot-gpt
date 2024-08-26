@@ -40,6 +40,7 @@ export async function processMessage(
 export async function fetchAttachmentContent(
   attachment: Attachment
 ): Promise<string> {
+  console.log(`Downloading attachment: ${attachment.url}`);
   const response = await fetch(attachment.url);
   if (!response.ok)
     throw new Error(`Не удалось скачать аттачмент: ${response.statusText}`);

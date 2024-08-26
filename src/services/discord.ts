@@ -31,6 +31,7 @@ export async function fetchMessageHistory(
           }
         } else if (
           attachment.contentType?.startsWith("text/") ||
+          attachment.contentType?.startsWith("application/json") ||
           attachment.contentType?.includes("javascript")
         ) {
           try {
@@ -42,6 +43,10 @@ export async function fetchMessageHistory(
               error
             );
           }
+        } else {
+          console.log(
+            `Attachment ${attachment.name} has unsupported content type: ${attachment.contentType}`
+          );
         }
       }
     }
