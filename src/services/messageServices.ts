@@ -130,7 +130,7 @@ export async function gpt(
     }
     messages.push(conversation[i]);
   }
-  console.log("gpt", { messages });
+  console.log("gpt", messages);
   const model = getGPTModelName(msg);
   const requestBody = {
     model,
