@@ -2,7 +2,6 @@ import dotenv from "dotenv";
 dotenv.config();
 import { promises as fsP, unlinkSync } from "fs";
 import axios from "axios";
-import { encode, decode } from "gpt-3-encoder";
 import { Events, TextChannel, Role, Message } from "discord.js";
 
 import { coderChatbotHandler } from "./commands/coder";
@@ -15,6 +14,7 @@ import {
   setCurrentTestPrompt,
 } from "./prompts/systemMessage";
 import { handleImageGeneration } from "./services/imageGeneration";
+import { calculateTokens, limitTokens } from "./utils";
 
 let availableDiscordChannels: string[] = [];
 
@@ -206,17 +206,6 @@ async function handleMessageWithEmiliaMention(msg: Message) {
   const response = await gpt(msg, gptConversation, options);
   return sendSplitResponse(msg, response);
   // return generateVoiceResponse(msg, response);
-}
-
-function calculateTokens(text: string): number {
-  const tokens = encode(text);
-  return tokens.length;
-}
-
-function limitTokens(text: string, maxTokens: number): string {
-  const tokens = encode(text);
-  const limitedTokens = tokens.slice(tokens.length - maxTokens, tokens.length);
-  return decode(limitedTokens);
 }
 
 export async function fetchMessageHistory(msg: Message) {
