@@ -22,5 +22,5 @@ export const aiCodeAssistChannels: string[] = [
 export const rateLimits = {
   minute: 4,
   hour: 25,
-  day: 75,
+  day: 100,
 };

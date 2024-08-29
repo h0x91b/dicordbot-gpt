@@ -14,6 +14,7 @@ interface RateLimitResult {
   limit: number;
   remaining: number;
   resetTime: number;
+  key: string;
 }
 
 async function checkRateLimit(
@@ -45,7 +46,7 @@ async function checkRateLimit(
   }
 
   if (ttl === -1 || ttl === -2) {
-    await redis.expire(redisKey, window * 2);
+    await redis.expire(redisKey, window);
   }
 
   const resetTime = Math.floor(Date.now() / 1000) + (ttl > 0 ? ttl : window);
@@ -55,6 +56,7 @@ async function checkRateLimit(
     limit,
     remaining: Math.max(0, limit - current),
     resetTime,
+    key,
   };
 
   console.log(`Rate limit for user ${userId} (${key}):`, result);

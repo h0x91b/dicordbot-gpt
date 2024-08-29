@@ -4,9 +4,17 @@ import {
   OpenAIApi,
   ChatCompletionRequestMessage,
   CreateChatCompletionRequest,
-  ChatCompletionResponseMessage,
-  CreateChatCompletionResponse,
 } from "openai";
+
+export enum OpenAIModel {
+  GPT_3_5 = "gpt-3.5-turbo",
+  GPT_3_5_16K = "gpt-3.5-turbo-16k",
+  GPT_4 = "gpt-4",
+  GPT_4_TURBO = "gpt-4-turbo",
+  GPT_4O = "gpt-4o",
+  GPT_4O_2024_08_06 = "gpt-4o-2024-08-06",
+  GPT_4O_MINI_2024_07_18 = "gpt-4o-mini-2024-07-18",
+}
 
 export function getOpenAI(): OpenAIApi {
   const configuration = new Configuration({
@@ -36,43 +44,7 @@ export async function getChatCompletion(
     throw new Error("Usage data is missing from the API response");
   }
 
-  let price: number;
-  switch (model) {
-    case "gpt-3.5-turbo":
-    case "gpt-3.5-turbo-16k":
-      price =
-        (usage.prompt_tokens / 1000000) * 1.5 +
-        (usage.completion_tokens / 1000000) * 2.0;
-      break;
-    case "gpt-4":
-      price =
-        (usage.prompt_tokens / 1000000) * 30.0 +
-        (usage.completion_tokens / 1000000) * 60.0;
-      break;
-    case "gpt-4-turbo":
-      price =
-        (usage.prompt_tokens / 1000000) * 10.0 +
-        (usage.completion_tokens / 1000000) * 30.0;
-      break;
-    case "gpt-4o":
-      price =
-        (usage.prompt_tokens / 1000000) * 5.0 +
-        (usage.completion_tokens / 1000000) * 15.0;
-      break;
-    case "gpt-4o-2024-08-06":
-      price =
-        (usage.prompt_tokens / 1000000) * 2.5 +
-        (usage.completion_tokens / 1000000) * 10.0;
-      break;
-    case "gpt-4o-mini-2024-07-18":
-      price =
-        (usage.prompt_tokens / 1000000) * 0.3 +
-        (usage.completion_tokens / 1000000) * 1.2;
-      break;
-    default:
-      price = 999.99;
-      break;
-  }
+  let price = calcOpenAIPrice(model, usage);
 
   const content = meta.choices[0]?.message?.content;
   if (!content) {
@@ -83,6 +55,56 @@ export async function getChatCompletion(
     content,
     price,
   };
+}
+
+export function calcOpenAIPrice(
+  model: string,
+  usage: { prompt_tokens: number; completion_tokens: number }
+) {
+  let price: number;
+  switch (model) {
+    case OpenAIModel.GPT_3_5:
+    case OpenAIModel.GPT_3_5_16K:
+      price =
+        (usage.prompt_tokens / 1000000) * 1.5 +
+        (usage.completion_tokens / 1000000) * 2.0;
+      break;
+
+    case OpenAIModel.GPT_4:
+      price =
+        (usage.prompt_tokens / 1000000) * 30.0 +
+        (usage.completion_tokens / 1000000) * 60.0;
+      break;
+
+    case OpenAIModel.GPT_4_TURBO:
+      price =
+        (usage.prompt_tokens / 1000000) * 10.0 +
+        (usage.completion_tokens / 1000000) * 30.0;
+      break;
+
+    case OpenAIModel.GPT_4O:
+      price =
+        (usage.prompt_tokens / 1000000) * 5.0 +
+        (usage.completion_tokens / 1000000) * 15.0;
+      break;
+
+    case OpenAIModel.GPT_4O_2024_08_06:
+      price =
+        (usage.prompt_tokens / 1000000) * 2.5 +
+        (usage.completion_tokens / 1000000) * 10.0;
+      break;
+
+    case OpenAIModel.GPT_4O_MINI_2024_07_18:
+      price =
+        (usage.prompt_tokens / 1000000) * 0.3 +
+        (usage.completion_tokens / 1000000) * 1.2;
+      break;
+
+    default:
+      price = 999.99;
+      break;
+  }
+  return price;
 }
 
 interface FunctionCallResult {
