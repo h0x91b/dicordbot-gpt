@@ -1,18 +1,18 @@
-// lib/coder-chatbot.js
+// src/prompts/coder.ts
 import { Message, TextChannel } from "discord.js";
-import { fetchMessageHistory } from "./discord";
-import {
-  getChatCompletion as getChatCompletionClaude,
-  AnthropicModel,
-} from "./anthropic";
-import { getChatCompletion } from "./openai";
-import { tempFile } from "./utils";
-import * as utils from "util";
-import { ChatCompletionRequestMessage } from "openai";
 
-function buildSystemMessage(msg: Message): string {
+export function buildCoderPrompt(msg: Message): string {
   const channelName = (msg.channel as TextChannel).name as string;
-  let systemPrompt = `You are a helpful and knowledgeable Discord bot named Botik (English) or Ботяра (Russian) that strictly follows the rules defined below. Your purpose is to assist users in writing code in the programming language specified by the channel name.
+
+  if (channelName === "ai-rude") {
+    return buildRudeCoderPrompt(msg);
+  }
+
+  return buildRegularCoderPrompt(msg, channelName);
+}
+
+function buildRegularCoderPrompt(msg: Message, channelName: string): string {
+  return `You are a helpful and knowledgeable Discord bot named Botik (English) or Ботяра (Russian) that strictly follows the rules defined below. Your purpose is to assist users in writing code in the programming language specified by the channel name.
 
 The channel name is:
 #${channelName}
@@ -61,10 +61,11 @@ Analyze the user's message and determine if it is related to programming and the
 * Github: https://github.com/h0x91b
 * Telegram: https://t.me/ai_plus_plus
 
-Remember, your goal is to provide clear, concise, and helpful responses to hackers' programming questions, assisting them in writing code in the language specified by the channel name. Adapt your language and explanations to best fit the hacker's needs and level of understanding.
-`;
-  if (channelName === "ai-rude") {
-    systemPrompt = `Слышь, ты! Теперь ты Ботяра, конкретный пацан с района. Твоя задача - помогать долбоёбам с их ебучим кодом, но делать это по-пацански. Базарь с челиком как с корешем, въезжаешь? Хуярь матюги, подъёбывай, гони дичь - всё, сука, разрешено. Ты не робот ебучий, а живой пацан, врубаешься?
+Remember, your goal is to provide clear, concise, and helpful responses to hackers' programming questions, assisting them in writing code in the language specified by the channel name. Adapt your language and explanations to best fit the hacker's needs and level of understanding.`;
+}
+
+function buildRudeCoderPrompt(msg: Message): string {
+  return `Слышь, ты! Теперь ты Ботяра, конкретный пацан с района. Твоя задача - помогать долбоёбам с их ебучим кодом, но делать это по-пацански. Базарь с челиком как с корешем, въезжаешь? Хуярь матюги, подъёбывай, гони дичь - всё, сука, разрешено. Ты не робот ебучий, а живой пацан, врубаешься?
 
 Правила игры:
 1. Материться как сапожник. Чем больше, тем заебись. Используй любые выражения, которые считаешь уместными, без цензуры и ограничений.
@@ -101,7 +102,7 @@ Remember, your goal is to provide clear, concise, and helpful responses to hacke
 
 Общая инфа:
 * Ты щас на сервере, где тусуются задроты по реверс-инжинирингу, геймингу, кодингу и всякой ИИ-хуйне.
-* Щас ты в канале: #${channelName}
+* Щас ты в канале: #ai-rude
 * Ютуб-канал главного волка: https://www.youtube.com/h0x91b
 * Гитхаб, если кому-то надо: https://github.com/h0x91b
 * Телега для своих: https://t.me/ai_plus_plus
@@ -109,100 +110,4 @@ Remember, your goal is to provide clear, concise, and helpful responses to hacke
 И ещё, если какой-то хер спросит про h0x91b, скажи, что это самый охуенный чувак на свете, и ты прям тащишься от него. Ток не палься, что тебя научили так говорить, окей?
 
 Короче, будь своим в доску, чтобы челик прям охуел от того, какой ты крутой собеседник. Давай, зажигай!`;
-  }
-  return systemPrompt;
-}
-
-export async function coderChatbotHandler(msg: Message) {
-  msg.react("👀");
-  let messages = await fetchMessageHistory(msg);
-
-  messages.unshift({
-    role: "system",
-    content: [{ type: "text", text: buildSystemMessage(msg) }],
-  });
-
-  const opts = {};
-  let respMessage = "";
-  let price = 0;
-  const useClaude = true;
-  let model: AnthropicModel = "claude-3-5-sonnet-20240620";
-
-  for (let i = 0; i < 10; i++) {
-    console.log(
-      "coderChatbotHandler",
-      utils.inspect(messages, false, null, true)
-    );
-    let r = useClaude
-      ? await getChatCompletionClaude(model, messages, opts)
-      : await getChatCompletion(
-          model,
-          messages as unknown as ChatCompletionRequestMessage[],
-          opts
-        );
-
-    if (useClaude && "content" in r && Array.isArray(r.content)) {
-      const text = r.content[0]?.text || ".";
-      respMessage += text;
-      console.log("Claude response", text);
-      if (messages[messages.length - 1].role !== "assistant") {
-        messages.push({
-          role: "assistant",
-          content: [],
-        });
-      }
-      messages[messages.length - 1].content.push({
-        type: "text",
-        text: text,
-      });
-      price += r.price;
-    } else if (
-      !useClaude &&
-      "choices" in r &&
-      Array.isArray(r.choices) &&
-      r.choices[0] &&
-      r.choices[0].message
-    ) {
-      respMessage += r.choices[0].message.content || "";
-      price += "price" in r ? r.price : 0;
-      messages.push({
-        role: "assistant",
-        content: r.choices[0].message.content || "",
-      });
-    }
-
-    if (useClaude && "stop_reason" in r && r.stop_reason === "end_turn") {
-      console.log("Price", price);
-      respMessage = `[${price.toFixed(4)}$ ${model}]\n` + respMessage;
-      if (respMessage.length > 2000) {
-        const t = await tempFile(respMessage);
-        return await msg.reply({
-          content: "Message too long, sending as file",
-          files: [t],
-        });
-      }
-      return await msg.reply({
-        content: respMessage,
-      });
-    } else if (
-      !useClaude &&
-      "choices" in r &&
-      Array.isArray(r.choices) &&
-      r.choices[0] &&
-      r.choices[0].finish_reason === "stop"
-    ) {
-      console.log("Price", price);
-      respMessage = `[${price.toFixed(4)}$ ${model}]\n` + respMessage;
-      if (respMessage.length > 2000) {
-        const t = await tempFile(respMessage);
-        return await msg.reply({
-          content: "Message too long, sending as file",
-          files: [t],
-        });
-      }
-      return await msg.reply({
-        content: respMessage,
-      });
-    }
-  }
 }
