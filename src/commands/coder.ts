@@ -5,7 +5,7 @@ import {
   getChatCompletion as getChatCompletionClaude,
   AnthropicModel,
 } from "../services/anthropic";
-import { getChatCompletion } from "../services/openai";
+import { getChatCompletion, OpenAIModel } from "../services/openai";
 import { tempFile } from "../utils";
 import * as utils from "util";
 import { ChatCompletionRequestMessage } from "openai";
@@ -25,7 +25,7 @@ export async function coderChatbotHandler(msg: Message) {
   let price = 0;
   const useClaude = false;
   let model: string = "claude-3-5-sonnet-20240620" as AnthropicModel;
-  if (!useClaude) model = "gpt-4o-mini-2024-07-18"; //"gpt-4o-2024-08-06";
+  if (!useClaude) model = OpenAIModel.GPT_4O_2024_08_06
 
   for (let i = 0; i < 10; i++) {
     console.log(

@@ -6,6 +6,7 @@ import axios from "axios";
 import { fetchMessageHistory } from "./discord";
 import { buildSystemMessage } from "../prompts/systemMessage";
 import { aiCodeAssistChannels, authorsToAllowGPT4 } from "../config";
+import { calcOpenAIPrice } from "./openai";
 
 export function isBotMentioned(msg: Message): boolean {
   const includesArray = ["ботик", "ботяра", "ботан", "botik", "botan"];
@@ -223,47 +224,7 @@ export async function gpt(
     const responseTime = ((Date.now() - now) / 1000).toFixed(2);
     console.log("responseTime", responseTime);
     if (options.skipCost) return choices[0].message.content;
-    let price: number;
-    // Model	Input	Output
-    // 4K context	$0.0015 / 1K tokens	$0.002 / 1K tokens
-    // 16K context	$0.003 / 1K tokens	$0.004 / 1K tokens
-
-    switch (model) {
-      case "gpt-3.5-turbo":
-      case "gpt-3.5-turbo-16k":
-        price =
-          (meta.usage.prompt_tokens / 1000000) * 1.5 +
-          (meta.usage.completion_tokens / 1000000) * 2.0;
-        break;
-      case "gpt-4":
-        price =
-          (meta.usage.prompt_tokens / 1000000) * 30.0 +
-          (meta.usage.completion_tokens / 1000000) * 60.0;
-        break;
-      case "gpt-4-turbo":
-        price =
-          (meta.usage.prompt_tokens / 1000000) * 10.0 +
-          (meta.usage.completion_tokens / 1000000) * 30.0;
-        break;
-      case "gpt-4o":
-        price =
-          (meta.usage.prompt_tokens / 1000000) * 5.0 +
-          (meta.usage.completion_tokens / 1000000) * 15.0;
-        break;
-      case "gpt-4o-2024-08-06":
-        price =
-          (meta.usage.prompt_tokens / 1000000) * 2.5 +
-          (meta.usage.completion_tokens / 1000000) * 10.0;
-        break;
-      case "gpt-4o-mini-2024-07-18":
-        price =
-          (meta.usage.prompt_tokens / 1000000) * 0.3 +
-          (meta.usage.completion_tokens / 1000000) * 1.2;
-        break;
-      default:
-        price = 999.99;
-        break;
-    }
+    let price: number = calcOpenAIPrice(model, meta.usage);
 
     return (
       `[${model} cost: ${price.toFixed(4)}$ tokens: ${
