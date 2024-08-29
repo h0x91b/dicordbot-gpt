@@ -23,8 +23,9 @@ export async function coderChatbotHandler(msg: Message) {
   const opts = {};
   let respMessage = "";
   let price = 0;
-  const useClaude = true;
-  let model: AnthropicModel = "claude-3-5-sonnet-20240620";
+  const useClaude = false;
+  let model: string = "claude-3-5-sonnet-20240620" as AnthropicModel;
+  if (!useClaude) model = "gpt-4o-mini-2024-07-18"; //"gpt-4o-2024-08-06";
 
   for (let i = 0; i < 10; i++) {
     console.log(
@@ -32,41 +33,22 @@ export async function coderChatbotHandler(msg: Message) {
       utils.inspect(messages, false, null, true)
     );
     let r = useClaude
-      ? await getChatCompletionClaude(model, messages, opts)
+      ? await getChatCompletionClaude(model as AnthropicModel, messages, opts)
       : await getChatCompletion(
           model,
           messages as unknown as ChatCompletionRequestMessage[],
           opts
         );
 
+    console.log("r", r);
     if (useClaude && "content" in r && Array.isArray(r.content)) {
       const text = r.content[0]?.text || ".";
       respMessage += text;
       console.log("Claude response", text);
-      if (messages[messages.length - 1].role !== "assistant") {
-        messages.push({
-          role: "assistant",
-          content: [],
-        });
-      }
-      messages[messages.length - 1].content.push({
-        type: "text",
-        text: text,
-      });
       price += r.price;
-    } else if (
-      !useClaude &&
-      "choices" in r &&
-      Array.isArray(r.choices) &&
-      r.choices[0] &&
-      r.choices[0].message
-    ) {
-      respMessage += r.choices[0].message.content || "";
+    } else if (!useClaude && "content" in r) {
+      respMessage += r.content || "";
       price += "price" in r ? r.price : 0;
-      messages.push({
-        role: "assistant",
-        content: r.choices[0].message.content || "",
-      });
     }
 
     if (useClaude && "stop_reason" in r && r.stop_reason === "end_turn") {
@@ -82,19 +64,15 @@ export async function coderChatbotHandler(msg: Message) {
       return await msg.reply({
         content: respMessage,
       });
-    } else if (
-      !useClaude &&
-      "choices" in r &&
-      Array.isArray(r.choices) &&
-      r.choices[0] &&
-      r.choices[0].finish_reason === "stop"
-    ) {
+    } else if (!useClaude && "content" in r) {
       console.log("Price", price);
       respMessage = `[${price.toFixed(4)}$ ${model}]\n` + respMessage;
       if (respMessage.length > 2000) {
         const t = await tempFile(respMessage);
         return await msg.reply({
-          content: "Message too long, sending as file",
+          content:
+            `[${price.toFixed(4)}$ ${model}]\n` +
+            "Message too long, sending as file",
           files: [t],
         });
       }

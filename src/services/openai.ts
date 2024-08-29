@@ -5,6 +5,7 @@ import {
   ChatCompletionRequestMessage,
   CreateChatCompletionRequest,
   ChatCompletionResponseMessage,
+  CreateChatCompletionResponse,
 } from "openai";
 
 export function getOpenAI(): OpenAIApi {
@@ -57,6 +58,16 @@ export async function getChatCompletion(
       price =
         (usage.prompt_tokens / 1000000) * 5.0 +
         (usage.completion_tokens / 1000000) * 15.0;
+      break;
+    case "gpt-4o-2024-08-06":
+      price =
+        (usage.prompt_tokens / 1000000) * 2.5 +
+        (usage.completion_tokens / 1000000) * 10.0;
+      break;
+    case "gpt-4o-mini-2024-07-18":
+      price =
+        (usage.prompt_tokens / 1000000) * 0.3 +
+        (usage.completion_tokens / 1000000) * 1.2;
       break;
     default:
       price = 999.99;
