@@ -130,11 +130,28 @@ export async function gpt(
     }
     messages.push(conversation[i]);
   }
-  console.log("gpt", messages);
+
+  // Trim the content of each message
+  const trimmedMessages = messages.map((message: Message) => ({
+    ...message,
+    content: Array.isArray(message.content)
+      ? message.content.map((item) =>
+          typeof item === "string"
+            ? item.trim()
+            : item.text
+            ? { ...item, text: item.text.trim() }
+            : item
+        )
+      : typeof message.content === "string"
+      ? message.content.trim()
+      : message.content,
+  }));
+
+  console.log("gpt", trimmedMessages);
   const model = getGPTModelName(msg);
   const requestBody = {
     model,
-    messages,
+    messages: trimmedMessages,
     user: `<@${msg.author.id}>`,
     max_tokens: 600,
   };

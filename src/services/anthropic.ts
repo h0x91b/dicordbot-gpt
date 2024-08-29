@@ -95,7 +95,11 @@ export async function getChatCompletion(
 
   // Теперь добавляем токены изображений к входным токенам
   const totalInputTokens = completionWithUsage.usage.input_tokens + imageTokens;
-  console.log("Total input tokens:", { totalInputTokens, imageTokens });
+  console.log("Total input tokens:", {
+    totalInputTokens,
+    imageTokens,
+    rawUsage: completionWithUsage.usage,
+  });
 
   // Расчет цены с учетом токенов изображений
   let price: number;
@@ -121,5 +125,6 @@ export async function getChatCompletion(
       ...completionWithUsage.usage,
       input_tokens: totalInputTokens,
     },
+    rawUsage: completionWithUsage.usage,
   };
 }
