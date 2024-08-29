@@ -18,3 +18,9 @@ export const aiCodeAssistChannels: string[] = [
   "ai-any-language",
   "ai-rude",
 ];
+
+export const rateLimits = {
+  minute: 4,
+  hour: 25,
+  day: 75,
+};
