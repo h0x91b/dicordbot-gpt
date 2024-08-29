@@ -91,9 +91,9 @@ export function getGPTModelName(msg: Message): string {
     (msg?.content?.includes("gpt-4") || msg?.content?.includes("gpt4")) &&
     authorsToAllowGPT4.includes(msg.author.id)
   ) {
-    return "gpt-4o";
+    return "gpt-4o-2024-08-06";
   }
-  return "gpt-4o";
+  return "gpt-4o-2024-08-06";
   // return "gpt-3.5-turbo-16k";
 }
 
@@ -249,6 +249,16 @@ export async function gpt(
         price =
           (meta.usage.prompt_tokens / 1000000) * 5.0 +
           (meta.usage.completion_tokens / 1000000) * 15.0;
+        break;
+      case "gpt-4o-2024-08-06":
+        price =
+          (meta.usage.prompt_tokens / 1000000) * 2.5 +
+          (meta.usage.completion_tokens / 1000000) * 10.0;
+        break;
+      case "gpt-4o-mini-2024-07-18":
+        price =
+          (meta.usage.prompt_tokens / 1000000) * 0.3 +
+          (meta.usage.completion_tokens / 1000000) * 1.2;
         break;
       default:
         price = 999.99;
