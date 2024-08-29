@@ -18,6 +18,25 @@ import {
 } from "../services/messageServices";
 import { checkUserRateLimit } from "../services/rateLimit";
 
+async function checkIfLimitExceeded(msg: Message) {
+  const rateLimitResult = await checkUserRateLimit(msg.author.id);
+  if (rateLimitResult) {
+    const { limit, remaining, resetTime, key } = rateLimitResult;
+    const timeUnit = key;
+    console.log(
+      `Rate limit exceeded for user ${msg.author.id}:`,
+      rateLimitResult
+    );
+    await msg.reply(
+      `Rate limit exceeded. You can send ${limit} messages per ${timeUnit}. ${remaining} messages remaining. Try again in ${Math.ceil(
+        (resetTime - Date.now() / 1000) / 60
+      )} minutes.`
+    );
+    return true;
+  }
+  return false;
+}
+
 export function setupMessageHandler(client: any) {
   return async function messageHandler(msg: Message) {
     console.log("on messageCreate", msg.content, {
@@ -32,31 +51,13 @@ export function setupMessageHandler(client: any) {
     try {
       if (msg.author.bot) return;
 
-      const rateLimitResult = await checkUserRateLimit(msg.author.id);
-      if (rateLimitResult) {
-        const { limit, remaining, resetTime } = rateLimitResult;
-        const timeUnit =
-          resetTime - Math.floor(Date.now() / 1000) > 3600
-            ? "hours"
-            : "minutes";
-        console.log(
-          `Rate limit exceeded for user ${msg.author.id}:`,
-          rateLimitResult
-        );
-        await msg.reply(
-          `Rate limit exceeded. You can send ${limit} messages per ${timeUnit}. ${remaining} messages remaining. Try again in ${Math.ceil(
-            (resetTime - Date.now() / 1000) / 60
-          )} minutes.`
-        );
-        return;
-      }
-
       if (msg.content === "!hello") {
         await handleHello(msg);
       } else if (
         msg.content.startsWith("!gpt") ||
         msg.content.startsWith("!гпт")
       ) {
+        if (await checkIfLimitExceeded(msg)) return;
         if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name)) {
           await coderChatbotHandler(msg);
         } else {
@@ -66,9 +67,11 @@ export function setupMessageHandler(client: any) {
         msg.content.startsWith("!img") ||
         msg.content.startsWith("!image")
       ) {
+        if (await checkIfLimitExceeded(msg)) return;
         await handleImageGeneration(msg);
       } else if (isBotMentioned(msg)) {
         if (msg.author.id === "1085479521240743946") return;
+        if (await checkIfLimitExceeded(msg)) return;
         if (aiCodeAssistChannels.includes((msg.channel as TextChannel).name)) {
           await coderChatbotHandler(msg);
         } else {
