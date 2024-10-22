@@ -14,6 +14,7 @@ export function getAnthropicClient() {
 export type AnthropicModel =
   | "claude-3-haiku-20240307"
   | "claude-3-5-sonnet-20240620"
+  | "claude-3-5-sonnet-20241022"
   | "claude-3-opus-20240229";
 
 interface ContentBlock {
@@ -105,6 +106,7 @@ export async function getChatCompletion(
   let price: number;
   switch (model) {
     case "claude-3-5-sonnet-20240620":
+    case "claude-3-5-sonnet-20241022":
       price =
         (totalInputTokens / 1000000) * 3 +
         (completionWithUsage.usage.output_tokens / 1000000) * 15;

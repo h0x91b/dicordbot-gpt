@@ -23,9 +23,9 @@ export async function coderChatbotHandler(msg: Message) {
   const opts = {};
   let respMessage = "";
   let price = 0;
-  const useClaude = false;
-  let model: string = "claude-3-5-sonnet-20240620" as AnthropicModel;
-  if (!useClaude) model = OpenAIModel.GPT_4O_2024_08_06
+  const useClaude = true;
+  let model: string = "claude-3-5-sonnet-20241022" as AnthropicModel;
+  if (!useClaude) model = OpenAIModel.GPT_4O_2024_08_06;
 
   for (let i = 0; i < 10; i++) {
     console.log(
