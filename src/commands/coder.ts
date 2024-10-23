@@ -15,9 +15,11 @@ export async function coderChatbotHandler(msg: Message) {
   msg.react("👀");
   let messages = await fetchMessageHistory(msg);
 
+  const system = await buildCoderPrompt(msg);
+
   messages.unshift({
     role: "system",
-    content: [{ type: "text", text: buildCoderPrompt(msg) }],
+    content: [{ type: "text", text: system }],
   });
 
   const opts = {};
