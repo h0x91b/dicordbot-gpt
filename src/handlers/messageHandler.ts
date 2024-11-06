@@ -37,9 +37,16 @@ async function checkIfLimitExceeded(msg: Message) {
   return false;
 }
 
+const messagesIds = new Set<string>();
 export function setupMessageHandler(client: any) {
   return async function messageHandler(msg: Message) {
+    if (messagesIds.has(msg.id)) {
+      console.log("Duplicate message", msg.id);
+      return;
+    }
+    messagesIds.add(msg.id);
     console.log("on messageCreate", msg.content, {
+      id: msg.id,
       author: msg.author.username,
       authorId: msg.author.id,
       channel: (msg.channel as TextChannel).name,
